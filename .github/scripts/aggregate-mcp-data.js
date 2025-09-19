@@ -261,12 +261,12 @@ function aggregateMcpData(k = 4) {
   const aggregatedData = {
     generated_at: new Date().toISOString(),
     k: k,
-    servers: {}
+    leaderboard: {}
   };
   
   for (const [serverName, implementations] of Object.entries(servers)) {
     console.log(`\n📊 Processing ${serverName}...`);
-    aggregatedData.servers[serverName] = {};
+    aggregatedData.leaderboard[serverName] = {};
     
     for (const [implName, implPath] of Object.entries(implementations)) {
       console.log(`  📥 Collecting data for ${implName}...`);
@@ -275,7 +275,7 @@ function aggregateMcpData(k = 4) {
       const metrics = calculateMetrics(runData, k);
       
       if (metrics) {
-        aggregatedData.servers[serverName][implName] = metrics;
+        aggregatedData.leaderboard[serverName][implName] = metrics;
         console.log(`    ✅ ${implName}: ${metrics.total_tasks} tasks, ${(metrics["pass@1"].avg * 100).toFixed(1)}% pass@1`);
       } else {
         console.log(`    ⚠️ ${implName}: No valid data found`);
@@ -308,7 +308,7 @@ function main() {
     
     // Print summary
     console.log('\n📊 Summary:');
-    for (const [serverName, implementations] of Object.entries(aggregatedData.servers)) {
+    for (const [serverName, implementations] of Object.entries(aggregatedData.leaderboard)) {
       console.log(`${serverName}:`);
       for (const [implName, data] of Object.entries(implementations)) {
         if (data.total_tasks) {
