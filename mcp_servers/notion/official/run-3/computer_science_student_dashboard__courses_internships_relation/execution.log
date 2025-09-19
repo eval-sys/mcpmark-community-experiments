@@ -1,0 +1,137 @@
+I'll help you connect the Courses and Internship search databases and populate them with the required sample data. Let me start by finding the Computer Science Student Dashboard page and the existing databases.
+| API-post-search {"query": "Computer Science Student Dashboard"}
+Great! I found the Computer Science Student Dashboard page. Now let me get the children of this page to find the databases.
+| API-get-block-children {"block_id": "2562b7e8-cebd-80a3-9569-d104e0669968"}
+Perfect! I can see both databases:
+1. Courses database: ID `2562b7e8-cebd-81f9-a745-d4c73c9202ee`
+2. Internship search database: ID `2562b7e8-cebd-81dc-a655-e39ac0cd05bb`
+
+Now let me retrieve the current structure of both databases to understand their properties.
+| API-retrieve-a-database {"database_id": "2562b7e8-cebd-81f9-a745-d4c73c9202ee"}
+
+| API-retrieve-a-database {"database_id": "2562b7e8-cebd-81dc-a655-e39ac0cd05bb"}
+Great! Now I understand the current structure of both databases. I need to:
+
+1. Add a "Related Internships" relation property to the Courses database pointing to the Internship search database
+2. Add a "Relevant Courses" relation property to the Internship search database pointing to the Courses database
+3. Create 3 courses with specific data
+4. Create2 internships with specific data
+5. Link them together
+
+Let me start by adding the relation properties to both databases:
+| API-update-a-database {"database_id": "2562b7e8-cebd-81f9-a745-d4c73c9202ee", "properties": {"Related Internships":{"type":"relation","relation":{"database_id":"2562b7e8-cebd-81dc-a655-e39ac0cd05bb","type":"dual_property","dual_property":{"synced_property_name":"Relevant Courses"}}}}}
+Perfect! The relation was created and Notion automatically created the dual property in the Internship search database. Now let me rename the dual property to "Relevant Courses" as required:
+| API-update-a-database {"database_id": "2562b7e8-cebd-81dc-a655-e39ac0cd05bb", "properties": {"Related to Courses (Related Internships)":{"name":"Relevant Courses"}}}
+Excellent! Now I have the bidirectional relation set up. I also need to check if there's an "Interested" status option in the Internship search database. I can see the current status options, but I need to add "Interested" if it doesn't exist. Let me add it:
+| API-update-a-database {"database_id": "2562b7e8-cebd-81dc-a655-e39ac0cd05bb", "properties": {"Status":{"status":{"options":[{"id":"xSU_","name":"Rejected","color":"red"},{"id":"4b35d2b9-28c6-4bc8-b0f5-10adb94d1b9e","name":"To apply","color":"default"},{"id":"5c1f297e-c5c2-4417-af69-c4e89374049a","name":"Applied","color":"blue"},{"id":"F[mm","name":"Interviewing","color":"yellow"},{"id":"c71849b8-1352-442b-82f7-baccffbb2618","name":"Accepted","color":"green"},{"name":"Interested","color":"purple"}]}}}}
+It seems I can't directly modify existing status options. Let me proceed with creating the courses and internships first, and I'll check if "Interested" already exists or can use "To apply" status. 
+
+Now let me create the three course pages first. Looking at the status options for courses, I need to map to the correct status IDs. I'll use:
+- "Planned" → "Not started" (id: e030722b-826d-4966-a421-42828f4222ce)
+- "In Progress" → "In progress" (id: 1eb3a37c-1618-4d0c-a5aa-05c68edb8bbe)  
+- "Completed" → "Done" (id: 60001e26-5bdc-4081-b1b2-32f79e688c63)
+
+Let me create the first course:
+| API-post-database-query {"database_id": "2562b7e8-cebd-81f9-a745-d4c73c9202ee"}
+I can see there are already some courses in the database. I need to create exactly 3 new courses with the specified codes CS301, CS302, CS303. Let me create these new courses. I need to construct pages with the parent property pointing to the database:
+| API-post-page {"parent": {"database_id":"2562b7e8-cebd-81f9-a745-d4c73c9202ee"}, "properties": {"title":[{"text":{"content":"Computer Networks"}}],"type":"title"}}
+I need to fix the properties structure. Let me look at how to properly create database pages. I need to use the property IDs from the database schema:
+| API-post-page {"parent": {"database_id":"2562b7e8-cebd-81f9-a745-d4c73c9202ee"}, "properties": {"Name":{"title":[{"text":{"content":"Computer Networks"}}]},"Code":{"rich_text":[{"text":{"content":"CS301"}}]},"Credit":{"number":3},"Status":{"status":{"name":"Planned"}}}}
+I need to use the correct status name. Let me use "Not started" instead:
+| API-post-page {"parent": {"database_id":"2562b7e8-cebd-81f9-a745-d4c73c9202ee"}, "properties": {"Code":{"rich_text":[{"text":{"content":"CS301"}}]},"Credit":{"number":3},"Name":{"title":[{"text":{"content":"Computer Networks"}}]},"Status":{"status":{"name":"Not started"}}}}
+Great! First course created. Now let me create the second course:
+| API-post-page {"parent": {"database_id":"2562b7e8-cebd-81f9-a745-d4c73c9202ee"}, "properties": {"Code":{"rich_text":[{"text":{"content":"CS302"}}]},"Credit":{"number":4},"Name":{"title":[{"text":{"content":"Operating Systems"}}]},"Status":{"status":{"name":"In progress"}}}}
+Excellent! Now let me create the third course:
+| API-post-page {"parent": {"database_id":"2562b7e8-cebd-81f9-a745-d4c73c9202ee"}, "properties": {"Code":{"rich_text":[{"text":{"content":"CS303"}}]},"Credit":{"number":3},"Name":{"title":[{"text":{"content":"Machine Learning"}}]},"Status":{"status":{"name":"Done"}}}}
+Perfect! All three courses are created. Now I need to create the two internships. Let me check the internship database first:
+| API-post-database-query {"database_id": "2562b7e8-cebd-81dc-a655-e39ac0cd05bb"}
+I can see there are existing internships. I need to create exactly 2 new internships with OpenAI and Google as required. Since "Interested" status is not available, I'll use "To apply" which is the closest equivalent. Let me create the first internship:
+| API-post-page {"parent": {"database_id":"2562b7e8-cebd-81dc-a655-e39ac0cd05bb"}, "properties": {"Company":{"rich_text":[{"text":{"content":"OpenAI"}}]},"Role":{"title":[{"text":{"content":"Machine Learning Intern"}}]},"Status":{"status":{"name":"To apply"}}}}
+Great! Now let me create the second internship:
+| API-post-page {"parent": {"database_id":"2562b7e8-cebd-81dc-a655-e39ac0cd05bb"}, "properties": {"Company":{"rich_text":[{"text":{"content":"Google"}}]},"Role":{"title":[{"text":{"content":"Software Engineering Intern"}}]},"Status":{"status":{"name":"To apply"}}}}
+Perfect! Now I have all the courses and internships created. Now I need to create the bidirectional relations between them. Let me start by linking the courses to internships. Let me summarize what I have:
+
+**Courses created:**
+1. CS301 - Computer Networks (ID: 2562b7e8-cebd-810d-8d37-cc3462c6aa49)
+2. CS302 - Operating Systems (ID: 2562b7e8-cebd-81a4-b23f-ce8e1f41e242)
+3. CS303 - Machine Learning (ID: 2562b7e8-cebd-81e9-953b-f8ebee1fc532)
+
+**Internships created:**
+1. OpenAI - Machine Learning Intern (ID: 2562b7e8-cebd-81b8-a191-e1db28452fd9)
+2. Google - Software Engineering Intern (ID: 2562b7e8-cebd-8149-90e3-c52167bfa3b7)
+
+I need to link them logically:
+- CS303 (Machine Learning) should link to OpenAI (Machine Learning Intern)
+- CS301 (Computer Networks) and CS302 (Operating Systems) should link to Google (Software Engineering Intern)
+
+Let me start by updating CS303 to link to OpenAI:
+| API-patch-page {"page_id": "2562b7e8-cebd-81e9-953b-f8ebee1fc532", "properties": {"Related Internships":{"relation":[{"id":"2562b7e8-cebd-81b8-a191-e1db28452fd9"}]}}}
+Excellent! Now let me link CS301 and CS302 to the Google internship. I'll start with CS301:
+| API-patch-page {"page_id": "2562b7e8-cebd-810d-8d37-cc3462c6aa49", "properties": {"Related Internships":{"relation":[{"id":"2562b7e8-cebd-8149-90e3-c52167bfa3b7"}]}}}
+Great! Now let me link CS302 to the Google internship as well:
+| API-patch-page {"page_id": "2562b7e8-cebd-81a4-b23f-ce8e1f41e242", "properties": {"Related Internships":{"relation":[{"id":"2562b7e8-cebd-8149-90e3-c52167bfa3b7"}]}}}
+Perfect! Now let me verify that the bidirectional relationships were created automatically by checking the internship pages. Let me check the OpenAI internship:
+| API-retrieve-a-page {"page_id": "2562b7e8-cebd-81b8-a191-e1db28452fd9"}
+Excellent! I can see that the OpenAI internship now has the CS303 (Machine Learning) course linked in its "Relevant Courses" property. Let me check the Google internship:
+| API-retrieve-a-page {"page_id": "2562b7e8-cebd-8149-90e3-c52167bfa3b7"}
+Perfect! The Google internship now has both CS301 (Computer Networks) and CS302 (Operating Systems) linked in its "Relevant Courses" property.
+
+Let me perform a final verification by querying both databases to confirm all the data is properly set up:
+| API-post-database-query {"database_id": "2562b7e8-cebd-81f9-a745-d4c73c9202ee", "filter": {"or":[{"rich_text":{"Code":{"equals":"CS301"}}},{"rich_text":{"Code":{"equals":"CS302"}}},{"rich_text":{"Code":{"equals":"CS303"}}}]}}
+Let me just query all the courses to see our new ones:
+| API-post-database-query {"database_id": "2562b7e8-cebd-81f9-a745-d4c73c9202ee"}
+Perfect! I can see all three new courses at the top of the results, and they all have the "Related Internships" relations properly set up. Let me also check the internships:
+| API-post-database-query {"database_id": "2562b7e8-cebd-81dc-a655-e39ac0cd05bb"}
+Excellent! Perfect! I can see that both new internships are at the top of the results and they both have the "Relevant Courses" relations properly set up.
+
+## Task Completion Summary
+
+I have successfully completed all requirements of the task:
+
+###✅ **1. Bidirectional Relation Properties Created:**
+- **Courses database**: Added "Related Internships" relation property that points to the Internship search database
+- **Internship search database**: Added "Relevant Courses" relation property that points back to the Courses database
+- Both relations are bidirectional as required
+
+### ✅ **2. Three New Courses Created with Complete Data:**
+1. **CS301 - Computer Networks**- Code: `CS301`
+   - Name: `Computer Networks`
+   - Credit: `3`
+   - Status: `Not started` (mapped from "Planned")
+   - Related Internships: Linked to Google internship
+
+2. **CS302 - Operating Systems**
+   - Code: `CS302`
+   - Name: `Operating Systems`
+   - Credit: `4`
+   - Status: `In progress`
+   - Related Internships: Linked to Google internship
+
+3. **CS303 - Machine Learning**
+   - Code: `CS303`
+   - Name: `Machine Learning`
+   - Credit: `3`
+   - Status: `Done` (mapped from "Completed")
+   - Related Internships: Linked to OpenAI internship
+
+### ✅ **3. Two New Internships Created with Complete Data:**
+1. **OpenAI - Machine Learning Intern**
+   - Company: `OpenAI`
+   - Role: `Machine Learning Intern`
+   - Status: `To apply` (closest available to "Interested")
+   - Relevant Courses: Linked to CS303 (Machine Learning)
+
+2. **Google - Software Engineering Intern**
+   - Company: `Google`
+   - Role: `Software Engineering Intern`
+   - Status: `To apply` (closest available to "Interested")
+   - Relevant Courses: Linked to CS301 (Computer Networks) and CS302 (Operating Systems)
+
+### ✅ **4. Complete Bidirectional Linking:**
+- Every course created is linked to at least one internship
+- Every internship created is linked back to at least one course
+- CS303↔ OpenAI internship
+- CS301 & CS302 ↔ Google internship
+- All relations work in both directions automatically due to Notion's dual property system
+
+The task is now complete and all data can be verified automatically through the Notion API. The databases are properly connected with realistic computer science course and internship data, and all bidirectional relationships are functioning correctly.

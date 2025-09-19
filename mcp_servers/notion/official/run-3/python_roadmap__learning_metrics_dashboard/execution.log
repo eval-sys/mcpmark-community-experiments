@@ -1,0 +1,72 @@
+I'll help you create the Learning Metrics Dashboard for the Python Roadmap page. Let me start by gathering the necessary data from the Steps database and then finding the correct page to update.
+| API-post-search {"query": "Python Roadmap", "filter": {"property":"object","value":"page"}}
+Now let me search for the Steps database to get all the data I need:
+| API-post-search {"filter": {"property":"object","value":"database"}, "query": "Steps"}
+Now let me query the Steps database to get all the lesson data:
+| API-post-database-query {"database_id": "2562b7e8-cebd-818f-9e3e-c038cf82aa2e"}
+Now I need to get information about the Chapters database to understand the different levels:
+| API-post-search {"filter": {"property":"object","value":"database"}, "query": "Chapters"}
+Let me query the Chapters database to get the chapter information:
+| API-post-database-query {"database_id": "2562b7e8-cebd-8161-a29b-f9530ac7c44e"}
+Now let me get the current structure of the Python Roadmap page to find where to insert the new content:
+| API-get-block-children {"block_id": "2562b7e8-cebd-80fe-9590-eedf24a9fc04"}
+Now I have all the data I need. Let me analyze the Steps database results and create the Learning Metrics Dashboard. Based on the data:
+
+1. Total lessons: 33 entries
+2. Done status: 10 lessons (What is Python, Setup Your Environment, Comments, Print, Variables, Input, Data Types, Intro to Data Types, String, Numbers)
+3. In Progress status: 1 lesson (Control Flow)
+4. To Do status: 22 lessons
+5. Beginner Level: 22 lessons (10 completed)
+6. Intermediate Level: 7 lessons (0 completed)
+7. Advanced Level: 4 lessons (0 completed)
+
+Let me add the Learning Metrics Dashboard after the Learning Materials section:
+| API-patch-block-children {"block_id": "2562b7e8-cebd-80fe-9590-eedf24a9fc04", "after": "2562b7e8-cebd-8157-985d-f8d6eaa4d73f", "children": [{"type":"heading_3","heading_3":{"rich_text":[{"type":"text","text":{"content":"📊 Learning Metrics Dashboard"}}]}},{"type":"callout","callout":{"rich_text":[{"type":"text","text":{"content":"Course Statistics","annotations":{"bold":true}}}],"color":"brown_background","children":[{"type":"bulleted_list_item","bulleted_list_item":{"rich_text":[{"type":"text","text":{"content":"Total Lessons: 33"}}]}},{"type":"bulleted_list_item","bulleted_list_item":{"rich_text":[{"type":"text","text":{"content":"Completed: 10 (30.3%)"}}]}},{"type":"bulleted_list_item","bulleted_list_item":{"rich_text":[{"type":"text","text":{"content":"In Progress: 1 (3.0%)"}}]}},{"type":"bulleted_list_item","bulleted_list_item":{"rich_text":[{"type":"text","text":{"content":"Beginner Level: 22 lessons (10 completed)"}}]}},{"type":"bulleted_list_item","bulleted_list_item":{"rich_text":[{"type":"text","text":{"content":"Intermediate Level: 7 lessons (0 completed)"}}]}},{"type":"bulleted_list_item","bulleted_list_item":{"rich_text":[{"type":"text","text":{"content":"Advanced Level: 4 lessons (0 completed)"}}]}}]}},{"type":"toggle","toggle":{"rich_text":[{"type":"text","text":{"content":"🏆 Completed Topics (Click to expand)"}}],"children":[{"type":"numbered_list_item","numbered_list_item":{"rich_text":[{"type":"text","text":{"content":"What is Python"}}]}},{"type":"numbered_list_item","numbered_list_item":{"rich_text":[{"type":"text","text":{"content":"Setup Your Environment"}}]}},{"type":"numbered_list_item","numbered_list_item":{"rich_text":[{"type":"text","text":{"content":"Comments"}}]}},{"type":"numbered_list_item","numbered_list_item":{"rich_text":[{"type":"text","text":{"content":"Print"}}]}},{"type":"numbered_list_item","numbered_list_item":{"rich_text":[{"type":"text","text":{"content":"Variables"}}]}}]}}]}
+Let me fix the callout formatting issue:
+| API-patch-block-children {"after": "2562b7e8-cebd-8157-985d-f8d6eaa4d73f", "block_id": "2562b7e8-cebd-80fe-9590-eedf24a9fc04", "children": [{"heading_3":{"rich_text":[{"text":{"content":"📊 Learning Metrics Dashboard"},"type":"text"}]},"type":"heading_3"}]}
+Now let me add the callout for Course Statistics:
+| API-patch-block-children {"after": "2562b7e8-cebd-81af-9372-fd41d2c3bfa0", "block_id": "2562b7e8-cebd-80fe-9590-eedf24a9fc04", "children": [{"callout":{"color":"brown_background","rich_text":[{"text":{"content":"Course Statistics"},"type":"text"}]},"type":"callout"}]}
+Now let me add the bulleted list items to the callout:
+| API-patch-block-children {"block_id": "2562b7e8-cebd-81d6-a816-dc900671d5ac", "children": [{"bulleted_list_item":{"rich_text":[{"text":{"content":"Total Lessons: 33"},"type":"text"}]},"type":"bulleted_list_item"},{"bulleted_list_item":{"rich_text":[{"text":{"content":"Completed: 10 (30.3%)"},"type":"text"}]},"type":"bulleted_list_item"},{"bulleted_list_item":{"rich_text":[{"text":{"content":"In Progress: 1 (3.0%)"},"type":"text"}]},"type":"bulleted_list_item"},{"bulleted_list_item":{"rich_text":[{"text":{"content":"Beginner Level: 22 lessons (10 completed)"},"type":"text"}]},"type":"bulleted_list_item"},{"bulleted_list_item":{"rich_text":[{"text":{"content":"Intermediate Level: 7 lessons (0 completed)"},"type":"text"}]},"type":"bulleted_list_item"},{"bulleted_list_item":{"rich_text":[{"text":{"content":"Advanced Level: 4 lessons (0 completed)"},"type":"text"}]},"type":"bulleted_list_item"}]}
+Now let me add the toggle section for completed topics:
+| API-patch-block-children {"after": "2562b7e8-cebd-81d6-a816-dc900671d5ac", "block_id": "2562b7e8-cebd-80fe-9590-eedf24a9fc04", "children": [{"toggle":{"rich_text":[{"text":{"content":"🏆 Completed Topics (Click to expand)"},"type":"text"}]},"type":"toggle"}]}
+Now let me add the numbered list items to the toggle section. Based on the data analysis, the completed lessons are:
+| API-patch-block-children {"block_id": "2562b7e8-cebd-8103-94f0-e7e605617ba0", "children": [{"numbered_list_item":{"rich_text":[{"text":{"content":"What is Python"},"type":"text"}]},"type":"numbered_list_item"},{"numbered_list_item":{"rich_text":[{"text":{"content":"Setup Your Environment"},"type":"text"}]},"type":"numbered_list_item"},{"numbered_list_item":{"rich_text":[{"text":{"content":"Comments"},"type":"text"}]},"type":"numbered_list_item"},{"numbered_list_item":{"rich_text":[{"text":{"content":"Print"},"type":"text"}]},"type":"numbered_list_item"},{"numbered_list_item":{"rich_text":[{"text":{"content":"Variables"},"type":"text"}]},"type":"numbered_list_item"}]}
+Perfect! I have successfully created the Learning Metrics Dashboard for the Python Roadmap page. Let me summarize what was accomplished:
+
+## ✅ Task Completed Successfully
+
+I have created a comprehensive Learning Metrics Dashboard that includes:
+
+### 1. Dashboard Header
+- Added a heading_3 block with "📊 Learning Metrics Dashboard"
+
+### 2. Course Statistics Block
+- **Type**: Callout with brown background
+- **Content**: Bulleted list with precise statistics:
+  - Total Lessons: 33
+  - Completed: 10 (30.3%)
+  - In Progress: 1 (3.0%) 
+  - Beginner Level: 22 lessons (10 completed)
+  - Intermediate Level: 7 lessons (0 completed)
+  - Advanced Level: 4 lessons (0 completed)
+
+### 3. Completed Topics Section
+- **Type**: Toggle block with "🏆 Completed Topics (Click to expand)"
+- **Content**: Numbered list with exactly 5 completed lessons:
+  1. What is Python
+  2. Setup Your Environment
+  3. Comments
+  4. Print
+  5. Variables
+
+### 📊 Data Analysis Summary
+The dashboard was built using real-time data from the Steps database:
+- **Total entries**: 33 lessons
+- **Done status**: 10 lessons (30.3% completion rate)
+- **In Progress**: 1 lesson (3.0%)
+- **To Do**: 22 lessons (66.7%)
+
+The section was placed exactly as requested - immediately after the Learning Materials section and before the "Whether you're starting from scratch..." paragraph.
+
+The dashboard provides users with clear visibility into their learning progress and helps them track their Python journey across different skill levels.

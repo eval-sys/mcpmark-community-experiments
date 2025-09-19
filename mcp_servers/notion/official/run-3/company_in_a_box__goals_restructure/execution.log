@@ -1,0 +1,83 @@
+I'll help you restructure the Current Goals section on your Company In A Box page. Let me first find the page and then examine its current structure.
+| API-post-search {"query": "Company In A Box", "filter": {"property":"object","value":"page"}}
+Now let me get the content of the main "Company In A Box" page to examine the current structure of the Current Goals section:
+| API-get-block-children {"block_id": "2562b7e8-cebd-80b1-a664-cc36b071c911"}
+I need to examine the column list sections to find the Current Goals section. Let me check the first column list:
+| API-get-block-children {"block_id": "2562b7e8-cebd-81c4-8eed-dcc609a0162d"}
+Let me check the second column list which might contain the Current Goals section:
+| API-get-block-children {"block_id": "2562b7e8-cebd-81f7-8ed5-d6f9c8add1c8"}
+Let me check the first column to see if it contains the Current Goals:
+| API-get-block-children {"block_id": "2562b7e8-cebd-8163-9c47-eb2b8834b1d8"}
+Let me check the second column:
+| API-get-block-children {"block_id": "2562b7e8-cebd-81af-ac8d-c186eb563d1b"}
+Let me check the first column list's first column:
+| API-get-block-children {"block_id": "2562b7e8-cebd-81da-93e9-ecbcae361ace"}
+Now let me check the second column of the first column list:
+| API-get-block-children {"block_id": "2562b7e8-cebd-8142-9408-e9f5706665d4"}
+Perfect! I found the Current Goals section. Now I can see the structure:
+
+1. **Current Goals** (heading_1)
+2. **⚙️ Expand Operations to LATAM** (heading_3) with paragraph description
+3. **🛠️ Push for Enterprise** (heading_3) with paragraph description
+4. **🩶 Boost Employee Engagement** (heading_3) with paragraph description
+
+Now I need to:
+1. Add the new "🔄 Digital Transformation Initiative" heading
+2. Convert all four headings to toggles
+3. Move the descriptions inside the toggles
+
+Let me start by adding the new heading and its content after the last block:
+| API-patch-block-children {"block_id": "2562b7e8-cebd-8142-9408-e9f5706665d4", "after": "2562b7e8-cebd-81d8-bbf5-f105e3ce17bc", "children": [{"type":"heading_3","heading_3":{"rich_text":[{"type":"text","text":{"content":"🔄 Digital Transformation Initiative"}}]}},{"type":"paragraph","paragraph":{"rich_text":[{"type":"text","text":{"content":"Modernize our technology infrastructure and digitize key business processes to improve efficiency and customer experience."}}]}}]}
+Now I need to convert all four headings to toggleable headings and move their descriptions inside them. I'll start with the first one - "⚙️ Expand Operations to LATAM":
+| API-update-a-block {"block_id": "2562b7e8-cebd-8179-8ed1-c992ab549e66", "type": {"heading_3":{"rich_text":[{"text":{"content":"⚙️ Expand Operations to LATAM"},"type":"text"}],"is_toggleable":true}}}
+Let me try a different approach. I need to update the block properly:
+| API-update-a-block {"block_id": "2562b7e8-cebd-8179-8ed1-c992ab549e66", "heading_3": {"is_toggleable":true,"rich_text":[{"text":{"content":"⚙️ Expand Operations to LATAM"},"type":"text"}]}}
+Great! Now I need to move the description paragraph as a child of this toggle. Let me first delete the paragraph and then add it as a child:
+| API-delete-a-block {"block_id": "2562b7e8-cebd-81c6-89a1-eb1c918cc7d0"}
+Now I'll add the description as a child of the toggle:
+| API-patch-block-children {"block_id": "2562b7e8-cebd-8179-8ed1-c992ab549e66", "children": [{"paragraph":{"rich_text":[{"text":{"content":"Focus on marketing and sales efforts in Latin America."},"type":"text"}]},"type":"paragraph"}]}
+Perfect! Now let me do the same for the second goal "🛠️ Push for Enterprise":
+| API-update-a-block {"block_id": "2562b7e8-cebd-8133-ad82-e896a9febfd1", "heading_3": {"is_toggleable":true,"rich_text":[{"text":{"content":"🛠️ Push for Enterprise"},"type":"text"}]}}
+Now delete the description paragraph and add it as a child:
+| API-delete-a-block {"block_id": "2562b7e8-cebd-811a-95ee-c20587884a0f"}
+
+| API-patch-block-children {"block_id": "2562b7e8-cebd-8133-ad82-e896a9febfd1", "children": [{"paragraph":{"rich_text":[{"text":{"content":"Aim product development, marketing, and sales efforts at the enterprise segment to expand our client base."},"type":"text"}]},"type":"paragraph"}]}
+Great! Now let me do the same for the third goal "🩶 Boost Employee Engagement":
+| API-update-a-block {"block_id": "2562b7e8-cebd-818e-8fcb-f319ede12752", "heading_3": {"is_toggleable":true,"rich_text":[{"text":{"content":"🩶 Boost Employee Engagement"},"type":"text"}]}}
+Now delete the description paragraph and add it as a child:
+| API-delete-a-block {"block_id": "2562b7e8-cebd-81d8-bbf5-f105e3ce17bc"}
+
+| API-patch-block-children {"block_id": "2562b7e8-cebd-818e-8fcb-f319ede12752", "children": [{"paragraph":{"rich_text":[{"text":{"content":"Aim to increase the overall employee satisfaction score by 10% in the next quarter. This will be achieved through regular feedback surveys and targeted action plans."},"type":"text"}]},"type":"paragraph"}]}
+Finally, let me convert the fourth goal "🔄 Digital Transformation Initiative" to a toggle:
+| API-update-a-block {"block_id": "2562b7e8-cebd-81bd-82a8-ea6d1b979a98", "heading_3": {"is_toggleable":true,"rich_text":[{"text":{"content":"🔄 Digital Transformation Initiative"},"type":"text"}]}}
+Now delete the description paragraph and add it as a child:
+| API-delete-a-block {"block_id": "2562b7e8-cebd-8117-ba42-ed58f860cefb"}
+
+| API-patch-block-children {"block_id": "2562b7e8-cebd-81bd-82a8-ea6d1b979a98", "children": [{"paragraph":{"rich_text":[{"text":{"content":"Modernize our technology infrastructure and digitize key business processes to improve efficiency and customer experience."},"type":"text"}]},"type":"paragraph"}]}
+Perfect! I have successfully restructured the **Current Goals** section on your **Company In A Box** page according to your requirements:
+
+##✅ **Task Completed Successfully**
+
+Here's what I accomplished:
+
+### 1. **Added New Goal Heading**
+✅ Created a new `heading_3` block titled "🔄 Digital Transformation Initiative" with appropriate description
+
+### 2. **Converted All Four Goal Headings to Toggles**
+✅ All four goal headings are now toggleable:
+- ⚙️ Expand Operations to LATAM  
+- 🛠️ Push for Enterprise
+- 🩶 Boost Employee Engagement  
+- 🔄 Digital Transformation Initiative  
+
+### 3. **Moved Descriptions Inside Toggles**
+✅ Each goal's description paragraph is now nested as a child block within its respective toggle:
+- **LATAM Expansion**: "Focus on marketing and sales efforts in Latin America."
+- **Enterprise Push**: "Aim product development, marketing, and sales efforts at the enterprise segment to expand our client base."
+- **Employee Engagement**: "Aim to increase the overall employee satisfaction score by 10% in the next quarter. This will be achieved through regular feedback surveys and targeted action plans."
+- **Digital Transformation**: "Modernize our technology infrastructure and digitize key business processes to improve efficiency and customer experience."
+
+### 4. **Preserved Content & Order**
+✅ All original text, formatting, and order have been maintained exactly as they were, with only the structural changes applied.
+
+Your **Current Goals** section now features a clean, organized layout with four toggleable goal headings that users can expand to view the detailed descriptions inside. This creates a more streamlined and professional appearance while keeping all the important information easily accessible.
