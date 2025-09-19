@@ -33,12 +33,19 @@ jobs:
       - name: Check for changes
         id: check-changes
         run: |
-          if [ -n "$(git diff --name-only)" ]; then
+          # Check for modified files (existing files that changed)
+          modified_files=$(git diff --name-only)
+          # Check for untracked files (new files)
+          untracked_files=$(git ls-files --others --exclude-standard)
+          
+          if [ -n "$modified_files" ] || [ -n "$untracked_files" ]; then
             echo "changes=true" >> $GITHUB_OUTPUT
-            echo "📊 Changes detected in mcp_servers.json"
+            echo "📊 Changes detected:"
+            [ -n "$modified_files" ] && echo "  Modified: $modified_files"
+            [ -n "$untracked_files" ] && echo "  New files: $untracked_files"
           else
             echo "changes=false" >> $GITHUB_OUTPUT
-            echo "ℹ️ No changes in mcp_servers.json"
+            echo "ℹ️ No changes detected"
           fi
       
       - name: Commit and push changes
