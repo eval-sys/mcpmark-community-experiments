@@ -247,6 +247,21 @@ function calculateMetrics(runData, k = 4) {
 }
 
 /**
+ * Load metadata from meta.json file
+ */
+function loadMetadata(implPath) {
+  const metaPath = path.join(implPath, 'meta.json');
+  if (fs.existsSync(metaPath)) {
+    try {
+      return JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+    } catch (error) {
+      console.warn(`Failed to read metadata from ${metaPath}:`, error.message);
+    }
+  }
+  return null;
+}
+
+/**
  * Main aggregation function
  */
 function aggregateMcpData(k = 4) {
@@ -273,9 +288,15 @@ function aggregateMcpData(k = 4) {
       
       const runData = collectRunData(implPath, k);
       const metrics = calculateMetrics(runData, k);
+      const metadata = loadMetadata(implPath);
       
       if (metrics) {
         aggregatedData.leaderboard[serverName][implName] = metrics;
+        
+        if (metadata) {
+          aggregatedData.leaderboard[serverName][implName].metadata = metadata;
+        }
+        
         console.log(`    ✅ ${implName}: ${metrics.total_tasks} tasks, ${(metrics["pass@1"].avg * 100).toFixed(1)}% pass@1`);
       } else {
         console.log(`    ⚠️ ${implName}: No valid data found`);
@@ -327,4 +348,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { aggregateMcpData, discoverMcpServers, collectRunData, calculateMetrics };
+module.exports = { aggregateMcpData, discoverMcpServers, collectRunData, calculateMetrics, loadMetadata };
