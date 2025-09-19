@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GH_TOKEN }}
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -61,7 +61,7 @@ jobs:
           - Commit: ${{ github.sha }}"
           git push
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
       
       - name: Create PR comment (for PRs)
         if: github.event_name == 'pull_request' && steps.check-changes.outputs.changes == 'true'
