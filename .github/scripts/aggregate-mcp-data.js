@@ -7,15 +7,15 @@
 const fs = require('fs');
 const path = require('path');
 
-// Default pricing rates (USD per 1K tokens)
+// Default pricing rates (USD per 1M tokens)
 const TOKEN_PRICING = {
-  'claude-sonnet-4': { input: 0.015, output: 0.075 },
-  'claude-sonnet-4-20250514': { input: 0.015, output: 0.075 },
-  'deepseek-v3.1-non-think': { input: 0.002, output: 0.01 },
-  'gpt-4o': { input: 0.0025, output: 0.01 },
-  'gpt-4o-mini': { input: 0.00015, output: 0.0006 },
-  'o1-preview': { input: 0.015, output: 0.06 },
-  'o1-mini': { input: 0.003, output: 0.012 },
+  'claude-sonnet-4': { input: 3, output: 15 },
+  'claude-sonnet-4-20250514': { input: 3, output: 15 },
+  'deepseek-v3.1-non-think': { input: 2, output: 10 },
+  'gpt-4o': { input: 2.5, output: 10 },
+  'gpt-4o-mini': { input: 0.15, output: 0.6 },
+  'o1-preview': { input: 15, output: 60 },
+  'o1-mini': { input: 3, output: 12 },
   // Add more models as needed
 };
 
@@ -29,8 +29,8 @@ function computeCostUsd(modelName, inputTokens, outputTokens) {
     return null;
   }
   
-  const inputCost = (inputTokens / 1000) * pricing.input;
-  const outputCost = (outputTokens / 1000) * pricing.output;
+  const inputCost = (inputTokens / 1000000) * pricing.input;
+  const outputCost = (outputTokens / 1000000) * pricing.output;
   return inputCost + outputCost;
 }
 
