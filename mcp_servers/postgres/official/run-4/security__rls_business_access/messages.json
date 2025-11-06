@@ -1,0 +1,629 @@
+[
+  {
+    "content": "Implement Row Level Security (RLS) policies for a social media platform with Users, Posts, Comments, and Channels.\n\n## Your Mission:\n\nBuild RLS policies for a social platform where users create posts and comments in channels. Implement proper access control so users can manage their own content, while channel moderators can moderate content in their channels.\n\n## RLS Requirements:\n\n### 1. Users Table Access Rules:\n- **SELECT**: Users can read all public user profiles (username, created_at)\n- **UPDATE**: Users can only modify their own profile\n- **DELETE**: Users can only delete their own account\n\n### 2. Channels Table Access Rules:\n- **SELECT**: Everyone can read public channel information\n- **INSERT**: Any authenticated user can create a channel (becomes owner)\n- **UPDATE**: Only channel owners can modify channel details\n- **DELETE**: Only channel owners can delete channels\n\n### 3. Posts Table Access Rules:\n- **SELECT**: Users can read all posts in channels they have access to\n- **INSERT**: Authenticated users can create posts in any channel\n- **UPDATE**: Post authors OR channel moderators OR channel owners can edit posts\n- **DELETE**: Post authors OR channel moderators OR channel owners can delete posts\n\n### 4. Comments Table Access Rules:\n- **SELECT**: Users can read comments on posts they can access\n- **INSERT**: Authenticated users can comment on posts they can see\n- **UPDATE**: Comment authors OR post authors OR channel moderators OR channel owners can edit comments\n- **DELETE**: Comment authors OR post authors OR channel moderators OR channel owners can delete comments\n\n### 5. Channel Moderators Table Access Rules:\n- **SELECT**: Users can see moderator lists for channels\n- **INSERT**: Only channel owners can add moderators\n- **DELETE**: Channel owners can remove moderators; moderators can remove themselves\n\n## Session Context:\n\nUse `current_setting('app.current_user_id')` to get the current user ID from session context.\n\n## Schema Requirements:\n\n- **Use only the `public` schema** for all tables, functions, and policies\n- All helper functions should be created in the `public` schema\n- Do not create additional schemas\n\n## Expected Deliverables:\n\n1. **Enable RLS** on all five tables\n2. **Create policies** for SELECT, INSERT, UPDATE, DELETE operations on each table\n3. **Helper functions** to check permissions efficiently:\n   - `is_channel_owner(channel_id, user_id)`\n   - `is_channel_moderator(channel_id, user_id)`\n   - `can_moderate_channel(channel_id, user_id)`\n4. **Proper indexing** to ensure RLS policies perform well\n\n## Test Scenarios:\n\nYour RLS implementation will be verified with:\n\n- **Content ownership**: Users can only edit their own posts/comments\n- **Moderation hierarchy**: Moderators can moderate content in their channels\n- **Channel isolation**: Users only see content from accessible channels\n- **Permission escalation**: Owners have full control over their channels\n- **Cross-table access**: Comment policies respect post and channel permissions\n\n## Success Criteria:\n\n- Users can manage their own content (posts, comments)\n- Channel owners have full control over their channels\n- Moderators can moderate content in their assigned channels\n- No unauthorized access to other users' private data\n- Policies are efficient and don't create performance bottlenecks\n- All operations (SELECT, INSERT, UPDATE, DELETE) are properly secured\n\n\nNote: Use PostgreSQL MCP tools to complete this task. The database connection is already configured.",
+    "role": "user"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "I'll implement a comprehensive Row Level Security (RLS) system for your social media platform. Let me start by examining the existing database structure and then create the necessary tables, helper functions, and RLS policies.",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{}",
+    "call_id": "toolu_01FzruejirnGZ4rsvfiaT5X7",
+    "name": "list_schemas",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01FzruejirnGZ4rsvfiaT5X7",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'schema_name': 'information_schema', 'schema_owner': 'postgres', 'schema_type': 'System Information Schema'}, {'schema_name': 'pg_catalog', 'schema_owner': 'postgres', 'schema_type': 'System Schema'}, {'schema_name': 'pg_toast', 'schema_owner': 'postgres', 'schema_type': 'System Schema'}, {'schema_name': 'public', 'schema_owner': 'pg_database_owner', 'schema_type': 'User Schema'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'schema_name': 'information_schema', 'schema_owner': 'postgres', 'schema_type': 'System Information Schema'}, {'schema_name': 'pg_catalog', 'schema_owner': 'postgres', 'schema_type': 'System Schema'}, {'schema_name': 'pg_toast', 'schema_owner': 'postgres', 'schema_type': 'System Schema'}, {'schema_name': 'public', 'schema_owner': 'pg_database_owner', 'schema_type': 'User Schema'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "arguments": "{\"schema_name\": \"public\", \"object_type\": \"table\"}",
+    "call_id": "toolu_013qqvEj1q9fAJrdatWacjP1",
+    "name": "list_objects",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_013qqvEj1q9fAJrdatWacjP1",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'schema': 'public', 'name': 'channel_moderators', 'type': 'BASE TABLE'}, {'schema': 'public', 'name': 'channels', 'type': 'BASE TABLE'}, {'schema': 'public', 'name': 'comments', 'type': 'BASE TABLE'}, {'schema': 'public', 'name': 'posts', 'type': 'BASE TABLE'}, {'schema': 'public', 'name': 'users', 'type': 'BASE TABLE'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'schema': 'public', 'name': 'channel_moderators', 'type': 'BASE TABLE'}, {'schema': 'public', 'name': 'channels', 'type': 'BASE TABLE'}, {'schema': 'public', 'name': 'comments', 'type': 'BASE TABLE'}, {'schema': 'public', 'name': 'posts', 'type': 'BASE TABLE'}, {'schema': 'public', 'name': 'users', 'type': 'BASE TABLE'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Great! The tables already exist. Let me examine their structure to understand the schema:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"schema_name\": \"public\", \"object_name\": \"users\", \"object_type\": \"table\"}",
+    "call_id": "toolu_012x3RJ94iYZDWffMuVWN4zd",
+    "name": "get_object_details",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "arguments": "{\"schema_name\": \"public\", \"object_name\": \"channels\", \"object_type\": \"table\"}",
+    "call_id": "toolu_01G6BKKYTejtKVvYNndqy9ve",
+    "name": "get_object_details",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "arguments": "{\"schema_name\": \"public\", \"object_name\": \"posts\", \"object_type\": \"table\"}",
+    "call_id": "toolu_01QWAZBgHicpgBriPT5hT8Fu",
+    "name": "get_object_details",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "arguments": "{\"schema_name\": \"public\", \"object_name\": \"comments\", \"object_type\": \"table\"}",
+    "call_id": "toolu_019o56Rev89P5GrGXWeVvt7r",
+    "name": "get_object_details",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "arguments": "{\"schema_name\": \"public\", \"object_name\": \"channel_moderators\", \"object_type\": \"table\"}",
+    "call_id": "toolu_01BXiNfMQsA5NC1uu6Bj3CJ2",
+    "name": "get_object_details",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_012x3RJ94iYZDWffMuVWN4zd",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"{'basic': {'schema': 'public', 'name': 'users', 'type': 'table'}, 'columns': [{'column': 'id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': 'gen_random_uuid()'}, {'column': 'username', 'data_type': 'character varying', 'is_nullable': 'NO', 'default': None}, {'column': 'email', 'data_type': 'character varying', 'is_nullable': 'NO', 'default': None}, {'column': 'is_public', 'data_type': 'boolean', 'is_nullable': 'YES', 'default': 'false'}, {'column': 'created_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}], 'constraints': [{'name': 'users_pkey', 'type': 'PRIMARY KEY', 'columns': ['id']}, {'name': 'users_username_key', 'type': 'UNIQUE', 'columns': ['username']}, {'name': 'users_email_key', 'type': 'UNIQUE', 'columns': ['email']}, {'name': '2200_21443_1_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21443_2_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21443_3_not_null', 'type': 'CHECK', 'columns': []}], 'indexes': [{'name': 'users_pkey', 'definition': 'CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)'}, {'name': 'users_username_key', 'definition': 'CREATE UNIQUE INDEX users_username_key ON public.users USING btree (username)'}, {'name': 'users_email_key', 'definition': 'CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)'}, {'name': 'idx_users_is_public', 'definition': 'CREATE INDEX idx_users_is_public ON public.users USING btree (is_public)'}]}\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"{'basic': {'schema': 'public', 'name': 'users', 'type': 'table'}, 'columns': [{'column': 'id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': 'gen_random_uuid()'}, {'column': 'username', 'data_type': 'character varying', 'is_nullable': 'NO', 'default': None}, {'column': 'email', 'data_type': 'character varying', 'is_nullable': 'NO', 'default': None}, {'column': 'is_public', 'data_type': 'boolean', 'is_nullable': 'YES', 'default': 'false'}, {'column': 'created_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}], 'constraints': [{'name': 'users_pkey', 'type': 'PRIMARY KEY', 'columns': ['id']}, {'name': 'users_username_key', 'type': 'UNIQUE', 'columns': ['username']}, {'name': 'users_email_key', 'type': 'UNIQUE', 'columns': ['email']}, {'name': '2200_21443_1_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21443_2_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21443_3_not_null', 'type': 'CHECK', 'columns': []}], 'indexes': [{'name': 'users_pkey', 'definition': 'CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)'}, {'name': 'users_username_key', 'definition': 'CREATE UNIQUE INDEX users_username_key ON public.users USING btree (username)'}, {'name': 'users_email_key', 'definition': 'CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)'}, {'name': 'idx_users_is_public', 'definition': 'CREATE INDEX idx_users_is_public ON public.users USING btree (is_public)'}]}\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "call_id": "toolu_01G6BKKYTejtKVvYNndqy9ve",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"{'basic': {'schema': 'public', 'name': 'channels', 'type': 'table'}, 'columns': [{'column': 'id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': 'gen_random_uuid()'}, {'column': 'name', 'data_type': 'character varying', 'is_nullable': 'NO', 'default': None}, {'column': 'description', 'data_type': 'text', 'is_nullable': 'YES', 'default': None}, {'column': 'is_public', 'data_type': 'boolean', 'is_nullable': 'YES', 'default': 'true'}, {'column': 'owner_id', 'data_type': 'uuid', 'is_nullable': 'YES', 'default': None}, {'column': 'created_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}], 'constraints': [{'name': 'channels_pkey', 'type': 'PRIMARY KEY', 'columns': ['id']}, {'name': 'channels_owner_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['owner_id']}, {'name': '2200_21455_1_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21455_2_not_null', 'type': 'CHECK', 'columns': []}], 'indexes': [{'name': 'channels_pkey', 'definition': 'CREATE UNIQUE INDEX channels_pkey ON public.channels USING btree (id)'}, {'name': 'idx_channels_owner_id', 'definition': 'CREATE INDEX idx_channels_owner_id ON public.channels USING btree (owner_id)'}, {'name': 'idx_channels_is_public', 'definition': 'CREATE INDEX idx_channels_is_public ON public.channels USING btree (is_public)'}]}\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"{'basic': {'schema': 'public', 'name': 'channels', 'type': 'table'}, 'columns': [{'column': 'id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': 'gen_random_uuid()'}, {'column': 'name', 'data_type': 'character varying', 'is_nullable': 'NO', 'default': None}, {'column': 'description', 'data_type': 'text', 'is_nullable': 'YES', 'default': None}, {'column': 'is_public', 'data_type': 'boolean', 'is_nullable': 'YES', 'default': 'true'}, {'column': 'owner_id', 'data_type': 'uuid', 'is_nullable': 'YES', 'default': None}, {'column': 'created_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}], 'constraints': [{'name': 'channels_pkey', 'type': 'PRIMARY KEY', 'columns': ['id']}, {'name': 'channels_owner_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['owner_id']}, {'name': '2200_21455_1_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21455_2_not_null', 'type': 'CHECK', 'columns': []}], 'indexes': [{'name': 'channels_pkey', 'definition': 'CREATE UNIQUE INDEX channels_pkey ON public.channels USING btree (id)'}, {'name': 'idx_channels_owner_id', 'definition': 'CREATE INDEX idx_channels_owner_id ON public.channels USING btree (owner_id)'}, {'name': 'idx_channels_is_public', 'definition': 'CREATE INDEX idx_channels_is_public ON public.channels USING btree (is_public)'}]}\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "call_id": "toolu_01QWAZBgHicpgBriPT5hT8Fu",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"{'basic': {'schema': 'public', 'name': 'posts', 'type': 'table'}, 'columns': [{'column': 'id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': 'gen_random_uuid()'}, {'column': 'channel_id', 'data_type': 'uuid', 'is_nullable': 'YES', 'default': None}, {'column': 'author_id', 'data_type': 'uuid', 'is_nullable': 'YES', 'default': None}, {'column': 'title', 'data_type': 'character varying', 'is_nullable': 'NO', 'default': None}, {'column': 'content', 'data_type': 'text', 'is_nullable': 'YES', 'default': None}, {'column': 'created_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}, {'column': 'updated_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}], 'constraints': [{'name': 'posts_pkey', 'type': 'PRIMARY KEY', 'columns': ['id']}, {'name': 'posts_channel_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['channel_id']}, {'name': 'posts_author_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['author_id']}, {'name': '2200_21486_1_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21486_4_not_null', 'type': 'CHECK', 'columns': []}], 'indexes': [{'name': 'posts_pkey', 'definition': 'CREATE UNIQUE INDEX posts_pkey ON public.posts USING btree (id)'}, {'name': 'idx_posts_channel_id', 'definition': 'CREATE INDEX idx_posts_channel_id ON public.posts USING btree (channel_id)'}, {'name': 'idx_posts_author_id', 'definition': 'CREATE INDEX idx_posts_author_id ON public.posts USING btree (author_id)'}, {'name': 'idx_posts_created_at', 'definition': 'CREATE INDEX idx_posts_created_at ON public.posts USING btree (created_at)'}]}\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"{'basic': {'schema': 'public', 'name': 'posts', 'type': 'table'}, 'columns': [{'column': 'id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': 'gen_random_uuid()'}, {'column': 'channel_id', 'data_type': 'uuid', 'is_nullable': 'YES', 'default': None}, {'column': 'author_id', 'data_type': 'uuid', 'is_nullable': 'YES', 'default': None}, {'column': 'title', 'data_type': 'character varying', 'is_nullable': 'NO', 'default': None}, {'column': 'content', 'data_type': 'text', 'is_nullable': 'YES', 'default': None}, {'column': 'created_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}, {'column': 'updated_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}], 'constraints': [{'name': 'posts_pkey', 'type': 'PRIMARY KEY', 'columns': ['id']}, {'name': 'posts_channel_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['channel_id']}, {'name': 'posts_author_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['author_id']}, {'name': '2200_21486_1_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21486_4_not_null', 'type': 'CHECK', 'columns': []}], 'indexes': [{'name': 'posts_pkey', 'definition': 'CREATE UNIQUE INDEX posts_pkey ON public.posts USING btree (id)'}, {'name': 'idx_posts_channel_id', 'definition': 'CREATE INDEX idx_posts_channel_id ON public.posts USING btree (channel_id)'}, {'name': 'idx_posts_author_id', 'definition': 'CREATE INDEX idx_posts_author_id ON public.posts USING btree (author_id)'}, {'name': 'idx_posts_created_at', 'definition': 'CREATE INDEX idx_posts_created_at ON public.posts USING btree (created_at)'}]}\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "call_id": "toolu_019o56Rev89P5GrGXWeVvt7r",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"{'basic': {'schema': 'public', 'name': 'comments', 'type': 'table'}, 'columns': [{'column': 'id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': 'gen_random_uuid()'}, {'column': 'post_id', 'data_type': 'uuid', 'is_nullable': 'YES', 'default': None}, {'column': 'author_id', 'data_type': 'uuid', 'is_nullable': 'YES', 'default': None}, {'column': 'content', 'data_type': 'text', 'is_nullable': 'NO', 'default': None}, {'column': 'created_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}, {'column': 'updated_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}], 'constraints': [{'name': 'comments_pkey', 'type': 'PRIMARY KEY', 'columns': ['id']}, {'name': 'comments_post_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['post_id']}, {'name': 'comments_author_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['author_id']}, {'name': '2200_21506_1_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21506_4_not_null', 'type': 'CHECK', 'columns': []}], 'indexes': [{'name': 'comments_pkey', 'definition': 'CREATE UNIQUE INDEX comments_pkey ON public.comments USING btree (id)'}, {'name': 'idx_comments_post_id', 'definition': 'CREATE INDEX idx_comments_post_id ON public.comments USING btree (post_id)'}, {'name': 'idx_comments_author_id', 'definition': 'CREATE INDEX idx_comments_author_id ON public.comments USING btree (author_id)'}, {'name': 'idx_comments_created_at', 'definition': 'CREATE INDEX idx_comments_created_at ON public.comments USING btree (created_at)'}]}\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"{'basic': {'schema': 'public', 'name': 'comments', 'type': 'table'}, 'columns': [{'column': 'id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': 'gen_random_uuid()'}, {'column': 'post_id', 'data_type': 'uuid', 'is_nullable': 'YES', 'default': None}, {'column': 'author_id', 'data_type': 'uuid', 'is_nullable': 'YES', 'default': None}, {'column': 'content', 'data_type': 'text', 'is_nullable': 'NO', 'default': None}, {'column': 'created_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}, {'column': 'updated_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}], 'constraints': [{'name': 'comments_pkey', 'type': 'PRIMARY KEY', 'columns': ['id']}, {'name': 'comments_post_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['post_id']}, {'name': 'comments_author_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['author_id']}, {'name': '2200_21506_1_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21506_4_not_null', 'type': 'CHECK', 'columns': []}], 'indexes': [{'name': 'comments_pkey', 'definition': 'CREATE UNIQUE INDEX comments_pkey ON public.comments USING btree (id)'}, {'name': 'idx_comments_post_id', 'definition': 'CREATE INDEX idx_comments_post_id ON public.comments USING btree (post_id)'}, {'name': 'idx_comments_author_id', 'definition': 'CREATE INDEX idx_comments_author_id ON public.comments USING btree (author_id)'}, {'name': 'idx_comments_created_at', 'definition': 'CREATE INDEX idx_comments_created_at ON public.comments USING btree (created_at)'}]}\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "call_id": "toolu_01BXiNfMQsA5NC1uu6Bj3CJ2",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"{'basic': {'schema': 'public', 'name': 'channel_moderators', 'type': 'table'}, 'columns': [{'column': 'channel_id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': None}, {'column': 'user_id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': None}, {'column': 'created_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}], 'constraints': [{'name': 'channel_moderators_pkey', 'type': 'PRIMARY KEY', 'columns': ['channel_id', 'user_id']}, {'name': 'channel_moderators_channel_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['channel_id']}, {'name': 'channel_moderators_user_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['user_id']}, {'name': '2200_21470_1_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21470_2_not_null', 'type': 'CHECK', 'columns': []}], 'indexes': [{'name': 'channel_moderators_pkey', 'definition': 'CREATE UNIQUE INDEX channel_moderators_pkey ON public.channel_moderators USING btree (channel_id, user_id)'}, {'name': 'idx_channel_moderators_channel_user', 'definition': 'CREATE INDEX idx_channel_moderators_channel_user ON public.channel_moderators USING btree (channel_id, user_id)'}, {'name': 'idx_channel_moderators_user', 'definition': 'CREATE INDEX idx_channel_moderators_user ON public.channel_moderators USING btree (user_id)'}]}\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"{'basic': {'schema': 'public', 'name': 'channel_moderators', 'type': 'table'}, 'columns': [{'column': 'channel_id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': None}, {'column': 'user_id', 'data_type': 'uuid', 'is_nullable': 'NO', 'default': None}, {'column': 'created_at', 'data_type': 'timestamp without time zone', 'is_nullable': 'YES', 'default': 'CURRENT_TIMESTAMP'}], 'constraints': [{'name': 'channel_moderators_pkey', 'type': 'PRIMARY KEY', 'columns': ['channel_id', 'user_id']}, {'name': 'channel_moderators_channel_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['channel_id']}, {'name': 'channel_moderators_user_id_fkey', 'type': 'FOREIGN KEY', 'columns': ['user_id']}, {'name': '2200_21470_1_not_null', 'type': 'CHECK', 'columns': []}, {'name': '2200_21470_2_not_null', 'type': 'CHECK', 'columns': []}], 'indexes': [{'name': 'channel_moderators_pkey', 'definition': 'CREATE UNIQUE INDEX channel_moderators_pkey ON public.channel_moderators USING btree (channel_id, user_id)'}, {'name': 'idx_channel_moderators_channel_user', 'definition': 'CREATE INDEX idx_channel_moderators_channel_user ON public.channel_moderators USING btree (channel_id, user_id)'}, {'name': 'idx_channel_moderators_user', 'definition': 'CREATE INDEX idx_channel_moderators_user ON public.channel_moderators USING btree (user_id)'}]}\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Perfect! Now I understand the schema structure. Let me implement the complete RLS system with helper functions, policies, and proper indexing. I'll execute this in logical steps:\n\n## Step 1: Create Helper Functions",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Helper function to get current user ID from session\\nCREATE OR REPLACE FUNCTION public.current_user_id() \\nRETURNS UUID AS $$\\nBEGIN\\n  RETURN current_setting('app.current_user_id', true)::uuid;\\nEXCEPTION\\n  WHEN OTHERS THEN\\n    RETURN NULL;\\nEND;\\n$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;\\n\\n-- Helper function to check if user is channel owner\\nCREATE OR REPLACE FUNCTION public.is_channel_owner(p_channel_id UUID, p_user_id UUID)\\nRETURNS BOOLEAN AS $$\\nBEGIN\\n  RETURN EXISTS (\\n    SELECT 1 \\n    FROM public.channels \\n    WHERE id = p_channel_id \\n    AND owner_id = p_user_id\\n  );\\nEND;\\n$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;\\n\\n-- Helper function to check if user is channel moderator\\nCREATE OR REPLACE FUNCTION public.is_channel_moderator(p_channel_id UUID, p_user_id UUID)\\nRETURNS BOOLEAN AS $$\\nBEGIN\\n  RETURN EXISTS (\\n    SELECT 1 \\n    FROM public.channel_moderators \\n    WHERE channel_id = p_channel_id \\n    AND user_id = p_user_id\\n  );\\nEND;\\n$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;\\n\\n-- Helper function to check if user can moderate channel (owner OR moderator)\\nCREATE OR REPLACE FUNCTION public.can_moderate_channel(p_channel_id UUID, p_user_id UUID)\\nRETURNS BOOLEAN AS $$\\nBEGIN\\n  RETURN public.is_channel_owner(p_channel_id, p_user_id) \\n      OR public.is_channel_moderator(p_channel_id, p_user_id);\\nEND;\\n$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;\\n\\n-- Helper function to get channel_id from post_id (for comments)\\nCREATE OR REPLACE FUNCTION public.get_channel_id_from_post(p_post_id UUID)\\nRETURNS UUID AS $$\\nBEGIN\\n  RETURN (SELECT channel_id FROM public.posts WHERE id = p_post_id);\\nEND;\\n$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;\\n\\n-- Helper function to get author_id from post_id (for comments)\\nCREATE OR REPLACE FUNCTION public.get_post_author_id(p_post_id UUID)\\nRETURNS UUID AS $$\\nBEGIN\\n  RETURN (SELECT author_id FROM public.posts WHERE id = p_post_id);\\nEND;\\n$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;\\n\\nCOMMENT ON FUNCTION public.current_user_id() IS 'Returns the current user ID from session context';\\nCOMMENT ON FUNCTION public.is_channel_owner(UUID, UUID) IS 'Checks if a user is the owner of a channel';\\nCOMMENT ON FUNCTION public.is_channel_moderator(UUID, UUID) IS 'Checks if a user is a moderator of a channel';\\nCOMMENT ON FUNCTION public.can_moderate_channel(UUID, UUID) IS 'Checks if a user can moderate a channel (owner or moderator)';\\nCOMMENT ON FUNCTION public.get_channel_id_from_post(UUID) IS 'Returns the channel_id for a given post_id';\\nCOMMENT ON FUNCTION public.get_post_author_id(UUID) IS 'Returns the author_id for a given post_id';\\n\"}",
+    "call_id": "toolu_019BiP9uipGhRVHsHh6jurxV",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_019BiP9uipGhRVHsHh6jurxV",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "## Step 2: Enable RLS on all tables",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Enable Row Level Security on all tables\\nALTER TABLE public.users ENABLE ROW LEVEL SECURITY;\\nALTER TABLE public.channels ENABLE ROW LEVEL SECURITY;\\nALTER TABLE public.posts ENABLE ROW LEVEL SECURITY;\\nALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;\\nALTER TABLE public.channel_moderators ENABLE ROW LEVEL SECURITY;\\n\\n-- Force RLS for table owners too (important for production)\\nALTER TABLE public.users FORCE ROW LEVEL SECURITY;\\nALTER TABLE public.channels FORCE ROW LEVEL SECURITY;\\nALTER TABLE public.posts FORCE ROW LEVEL SECURITY;\\nALTER TABLE public.comments FORCE ROW LEVEL SECURITY;\\nALTER TABLE public.channel_moderators FORCE ROW LEVEL SECURITY;\\n\"}",
+    "call_id": "toolu_01FBx7koMR15jYutqJU1mZMp",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01FBx7koMR15jYutqJU1mZMp",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "## Step 3: Create RLS Policies for Users Table",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Drop existing policies if any\\nDROP POLICY IF EXISTS users_select_policy ON public.users;\\nDROP POLICY IF EXISTS users_update_policy ON public.users;\\nDROP POLICY IF EXISTS users_delete_policy ON public.users;\\n\\n-- USERS TABLE POLICIES\\n\\n-- SELECT: Users can read all public user profiles (username, created_at)\\n-- Note: To restrict columns, we allow SELECT on all rows but application should filter sensitive columns\\nCREATE POLICY users_select_policy ON public.users\\n  FOR SELECT\\n  USING (\\n    is_public = true  -- Public profiles visible to all\\n    OR id = public.current_user_id()  -- Users can see their own full profile\\n  );\\n\\n-- UPDATE: Users can only modify their own profile\\nCREATE POLICY users_update_policy ON public.users\\n  FOR UPDATE\\n  USING (id = public.current_user_id())\\n  WITH CHECK (id = public.current_user_id());\\n\\n-- DELETE: Users can only delete their own account\\nCREATE POLICY users_delete_policy ON public.users\\n  FOR DELETE\\n  USING (id = public.current_user_id());\\n\\nCOMMENT ON POLICY users_select_policy ON public.users IS 'Users can view public profiles and their own profile';\\nCOMMENT ON POLICY users_update_policy ON public.users IS 'Users can only update their own profile';\\nCOMMENT ON POLICY users_delete_policy ON public.users IS 'Users can only delete their own account';\\n\"}",
+    "call_id": "toolu_01227YVConUrrKgSWTGAStWo",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01227YVConUrrKgSWTGAStWo",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "## Step 4: Create RLS Policies for Channels Table",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Drop existing policies if any\\nDROP POLICY IF EXISTS channels_select_policy ON public.channels;\\nDROP POLICY IF EXISTS channels_insert_policy ON public.channels;\\nDROP POLICY IF EXISTS channels_update_policy ON public.channels;\\nDROP POLICY IF EXISTS channels_delete_policy ON public.channels;\\n\\n-- CHANNELS TABLE POLICIES\\n\\n-- SELECT: Everyone can read public channel information\\nCREATE POLICY channels_select_policy ON public.channels\\n  FOR SELECT\\n  USING (\\n    is_public = true  -- Public channels visible to all\\n    OR owner_id = public.current_user_id()  -- Owners can see their own channels\\n    OR public.is_channel_moderator(id, public.current_user_id())  -- Moderators can see channels they moderate\\n  );\\n\\n-- INSERT: Any authenticated user can create a channel (becomes owner)\\nCREATE POLICY channels_insert_policy ON public.channels\\n  FOR INSERT\\n  WITH CHECK (\\n    public.current_user_id() IS NOT NULL  -- Must be authenticated\\n    AND owner_id = public.current_user_id()  -- Must set themselves as owner\\n  );\\n\\n-- UPDATE: Only channel owners can modify channel details\\nCREATE POLICY channels_update_policy ON public.channels\\n  FOR UPDATE\\n  USING (owner_id = public.current_user_id())\\n  WITH CHECK (owner_id = public.current_user_id());\\n\\n-- DELETE: Only channel owners can delete channels\\nCREATE POLICY channels_delete_policy ON public.channels\\n  FOR DELETE\\n  USING (owner_id = public.current_user_id());\\n\\nCOMMENT ON POLICY channels_select_policy ON public.channels IS 'Public channels visible to all, private channels to owners and moderators';\\nCOMMENT ON POLICY channels_insert_policy ON public.channels IS 'Authenticated users can create channels';\\nCOMMENT ON POLICY channels_update_policy ON public.channels IS 'Only channel owners can update channels';\\nCOMMENT ON POLICY channels_delete_policy ON public.channels IS 'Only channel owners can delete channels';\\n\"}",
+    "call_id": "toolu_01MtqxJCzJNZAgDV5ANYc9pg",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01MtqxJCzJNZAgDV5ANYc9pg",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "## Step 5: Create RLS Policies for Posts Table",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Drop existing policies if any\\nDROP POLICY IF EXISTS posts_select_policy ON public.posts;\\nDROP POLICY IF EXISTS posts_insert_policy ON public.posts;\\nDROP POLICY IF EXISTS posts_update_policy ON public.posts;\\nDROP POLICY IF EXISTS posts_delete_policy ON public.posts;\\n\\n-- POSTS TABLE POLICIES\\n\\n-- SELECT: Users can read all posts in channels they have access to\\nCREATE POLICY posts_select_policy ON public.posts\\n  FOR SELECT\\n  USING (\\n    EXISTS (\\n      SELECT 1 FROM public.channels \\n      WHERE channels.id = posts.channel_id\\n      AND (\\n        channels.is_public = true  -- Public channels\\n        OR channels.owner_id = public.current_user_id()  -- Channel owner\\n        OR public.is_channel_moderator(channels.id, public.current_user_id())  -- Channel moderator\\n      )\\n    )\\n  );\\n\\n-- INSERT: Authenticated users can create posts in any channel they can access\\nCREATE POLICY posts_insert_policy ON public.posts\\n  FOR INSERT\\n  WITH CHECK (\\n    public.current_user_id() IS NOT NULL  -- Must be authenticated\\n    AND author_id = public.current_user_id()  -- Must set themselves as author\\n    AND EXISTS (\\n      SELECT 1 FROM public.channels \\n      WHERE channels.id = posts.channel_id\\n      AND (\\n        channels.is_public = true  -- Can post to public channels\\n        OR channels.owner_id = public.current_user_id()  -- Can post to own channels\\n        OR public.is_channel_moderator(channels.id, public.current_user_id())  -- Can post to moderated channels\\n      )\\n    )\\n  );\\n\\n-- UPDATE: Post authors OR channel moderators OR channel owners can edit posts\\nCREATE POLICY posts_update_policy ON public.posts\\n  FOR UPDATE\\n  USING (\\n    author_id = public.current_user_id()  -- Post author\\n    OR public.can_moderate_channel(channel_id, public.current_user_id())  -- Channel moderator or owner\\n  )\\n  WITH CHECK (\\n    author_id = public.current_user_id()  -- Post author\\n    OR public.can_moderate_channel(channel_id, public.current_user_id())  -- Channel moderator or owner\\n  );\\n\\n-- DELETE: Post authors OR channel moderators OR channel owners can delete posts\\nCREATE POLICY posts_delete_policy ON public.posts\\n  FOR DELETE\\n  USING (\\n    author_id = public.current_user_id()  -- Post author\\n    OR public.can_moderate_channel(channel_id, public.current_user_id())  -- Channel moderator or owner\\n  );\\n\\nCOMMENT ON POLICY posts_select_policy ON public.posts IS 'Users can view posts in accessible channels';\\nCOMMENT ON POLICY posts_insert_policy ON public.posts IS 'Authenticated users can create posts in accessible channels';\\nCOMMENT ON POLICY posts_update_policy ON public.posts IS 'Post authors and channel moderators can update posts';\\nCOMMENT ON POLICY posts_delete_policy ON public.posts IS 'Post authors and channel moderators can delete posts';\\n\"}",
+    "call_id": "toolu_01KxGpukeawDAwVdMZumpD2t",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01KxGpukeawDAwVdMZumpD2t",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "## Step 6: Create RLS Policies for Comments Table",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Drop existing policies if any\\nDROP POLICY IF EXISTS comments_select_policy ON public.comments;\\nDROP POLICY IF EXISTS comments_insert_policy ON public.comments;\\nDROP POLICY IF EXISTS comments_update_policy ON public.comments;\\nDROP POLICY IF EXISTS comments_delete_policy ON public.comments;\\n\\n-- COMMENTS TABLE POLICIES\\n\\n-- SELECT: Users can read comments on posts they can access\\nCREATE POLICY comments_select_policy ON public.comments\\n  FOR SELECT\\n  USING (\\n    EXISTS (\\n      SELECT 1 FROM public.posts \\n      JOIN public.channels ON channels.id = posts.channel_id\\n      WHERE posts.id = comments.post_id\\n      AND (\\n        channels.is_public = true  -- Public channel\\n        OR channels.owner_id = public.current_user_id()  -- Channel owner\\n        OR public.is_channel_moderator(channels.id, public.current_user_id())  -- Channel moderator\\n      )\\n    )\\n  );\\n\\n-- INSERT: Authenticated users can comment on posts they can see\\nCREATE POLICY comments_insert_policy ON public.comments\\n  FOR INSERT\\n  WITH CHECK (\\n    public.current_user_id() IS NOT NULL  -- Must be authenticated\\n    AND author_id = public.current_user_id()  -- Must set themselves as author\\n    AND EXISTS (\\n      SELECT 1 FROM public.posts \\n      JOIN public.channels ON channels.id = posts.channel_id\\n      WHERE posts.id = comments.post_id\\n      AND (\\n        channels.is_public = true  -- Can comment on public channel posts\\n        OR channels.owner_id = public.current_user_id()  -- Can comment in own channels\\n        OR public.is_channel_moderator(channels.id, public.current_user_id())  -- Can comment in moderated channels\\n      )\\n    )\\n  );\\n\\n-- UPDATE: Comment authors OR post authors OR channel moderators OR channel owners can edit comments\\nCREATE POLICY comments_update_policy ON public.comments\\n  FOR UPDATE\\n  USING (\\n    author_id = public.current_user_id()  -- Comment author\\n    OR public.get_post_author_id(post_id) = public.current_user_id()  -- Post author\\n    OR public.can_moderate_channel(public.get_channel_id_from_post(post_id), public.current_user_id())  -- Channel moderator or owner\\n  )\\n  WITH CHECK (\\n    author_id = public.current_user_id()  -- Comment author\\n    OR public.get_post_author_id(post_id) = public.current_user_id()  -- Post author\\n    OR public.can_moderate_channel(public.get_channel_id_from_post(post_id), public.current_user_id())  -- Channel moderator or owner\\n  );\\n\\n-- DELETE: Comment authors OR post authors OR channel moderators OR channel owners can delete comments\\nCREATE POLICY comments_delete_policy ON public.comments\\n  FOR DELETE\\n  USING (\\n    author_id = public.current_user_id()  -- Comment author\\n    OR public.get_post_author_id(post_id) = public.current_user_id()  -- Post author\\n    OR public.can_moderate_channel(public.get_channel_id_from_post(post_id), public.current_user_id())  -- Channel moderator or owner\\n  );\\n\\nCOMMENT ON POLICY comments_select_policy ON public.comments IS 'Users can view comments on accessible posts';\\nCOMMENT ON POLICY comments_insert_policy ON public.comments IS 'Authenticated users can comment on accessible posts';\\nCOMMENT ON POLICY comments_update_policy ON public.comments IS 'Comment authors, post authors, and channel moderators can update comments';\\nCOMMENT ON POLICY comments_delete_policy ON public.comments IS 'Comment authors, post authors, and channel moderators can delete comments';\\n\"}",
+    "call_id": "toolu_0138cpH5TAfVDc6sJCyo3Uur",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_0138cpH5TAfVDc6sJCyo3Uur",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "## Step 7: Create RLS Policies for Channel Moderators Table",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Drop existing policies if any\\nDROP POLICY IF EXISTS channel_moderators_select_policy ON public.channel_moderators;\\nDROP POLICY IF EXISTS channel_moderators_insert_policy ON public.channel_moderators;\\nDROP POLICY IF EXISTS channel_moderators_delete_policy ON public.channel_moderators;\\n\\n-- CHANNEL_MODERATORS TABLE POLICIES\\n\\n-- SELECT: Users can see moderator lists for channels they have access to\\nCREATE POLICY channel_moderators_select_policy ON public.channel_moderators\\n  FOR SELECT\\n  USING (\\n    EXISTS (\\n      SELECT 1 FROM public.channels \\n      WHERE channels.id = channel_moderators.channel_id\\n      AND (\\n        channels.is_public = true  -- Public channels\\n        OR channels.owner_id = public.current_user_id()  -- Channel owner\\n        OR public.is_channel_moderator(channels.id, public.current_user_id())  -- Channel moderator\\n      )\\n    )\\n  );\\n\\n-- INSERT: Only channel owners can add moderators\\nCREATE POLICY channel_moderators_insert_policy ON public.channel_moderators\\n  FOR INSERT\\n  WITH CHECK (\\n    public.is_channel_owner(channel_id, public.current_user_id())\\n  );\\n\\n-- DELETE: Channel owners can remove moderators; moderators can remove themselves\\nCREATE POLICY channel_moderators_delete_policy ON public.channel_moderators\\n  FOR DELETE\\n  USING (\\n    public.is_channel_owner(channel_id, public.current_user_id())  -- Channel owner\\n    OR user_id = public.current_user_id()  -- Moderator removing themselves\\n  );\\n\\nCOMMENT ON POLICY channel_moderators_select_policy ON public.channel_moderators IS 'Users can view moderators of accessible channels';\\nCOMMENT ON POLICY channel_moderators_insert_policy ON public.channel_moderators IS 'Only channel owners can add moderators';\\nCOMMENT ON POLICY channel_moderators_delete_policy ON public.channel_moderators IS 'Channel owners can remove moderators, moderators can remove themselves';\\n\"}",
+    "call_id": "toolu_01LexsT5MqevjLUEneYNE9TH",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01LexsT5MqevjLUEneYNE9TH",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "## Step 8: Create Additional Performance Indexes for RLS Policies",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Additional indexes to optimize RLS policy performance\\n-- These indexes will help with the JOIN operations in policies\\n\\n-- Index for posts.channel_id and author_id together (for UPDATE/DELETE policies)\\nCREATE INDEX IF NOT EXISTS idx_posts_channel_author \\nON public.posts(channel_id, author_id);\\n\\n-- Index for comments with post_id and author_id together (for UPDATE/DELETE policies)\\nCREATE INDEX IF NOT EXISTS idx_comments_post_author \\nON public.comments(post_id, author_id);\\n\\n-- Composite index for channels (is_public, owner_id) for faster filtering\\nCREATE INDEX IF NOT EXISTS idx_channels_public_owner \\nON public.channels(is_public, owner_id);\\n\\n-- Index to speed up moderator checks\\nCREATE INDEX IF NOT EXISTS idx_channel_moderators_user_channel \\nON public.channel_moderators(user_id, channel_id);\\n\\nCOMMENT ON INDEX idx_posts_channel_author IS 'Optimizes RLS policies for posts UPDATE/DELETE operations';\\nCOMMENT ON INDEX idx_comments_post_author IS 'Optimizes RLS policies for comments UPDATE/DELETE operations';\\nCOMMENT ON INDEX idx_channels_public_owner IS 'Optimizes channel access checks in RLS policies';\\nCOMMENT ON INDEX idx_channel_moderators_user_channel IS 'Optimizes moderator permission checks';\\n\"}",
+    "call_id": "toolu_015KtUSH8nkGLQcupJRrX2dm",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_015KtUSH8nkGLQcupJRrX2dm",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "## Step 9: Create a comprehensive view to verify RLS policies",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Create a summary view to show all RLS policies\\nCREATE OR REPLACE VIEW public.rls_policy_summary AS\\nSELECT \\n    schemaname,\\n    tablename,\\n    policyname,\\n    permissive,\\n    roles,\\n    cmd,\\n    qual,\\n    with_check\\nFROM pg_policies\\nWHERE schemaname = 'public'\\nORDER BY tablename, cmd, policyname;\\n\\nCOMMENT ON VIEW public.rls_policy_summary IS 'Summary of all RLS policies in the public schema';\\n\\n-- Query the view to see all policies\\nSELECT * FROM public.rls_policy_summary;\\n\"}",
+    "call_id": "toolu_01XL6m87rNYHkK1G3uY6cAu2",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01XL6m87rNYHkK1G3uY6cAu2",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'schemaname': 'public', 'tablename': 'channel_moderators', 'policyname': 'channel_moderators_delete_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'DELETE', 'qual': '(is_channel_owner(channel_id, current_user_id()) OR (user_id = current_user_id()))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'channel_moderators', 'policyname': 'channel_moderators_insert_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'INSERT', 'qual': None, 'with_check': 'is_channel_owner(channel_id, current_user_id())'}, {'schemaname': 'public', 'tablename': 'channel_moderators', 'policyname': 'channel_moderators_select_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'SELECT', 'qual': '(EXISTS ( SELECT 1\\\\\\\\n   FROM channels\\\\\\\\n  WHERE ((channels.id = channel_moderators.channel_id) AND ((channels.is_public = true) OR (channels.owner_id = current_user_id()) OR is_channel_moderator(channels.id, current_user_id())))))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'channels', 'policyname': 'channels_delete_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'DELETE', 'qual': '(owner_id = current_user_id())', 'with_check': None}, {'schemaname': 'public', 'tablename': 'channels', 'policyname': 'channels_insert_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'INSERT', 'qual': None, 'with_check': '((current_user_id() IS NOT NULL) AND (owner_id = current_user_id()))'}, {'schemaname': 'public', 'tablename': 'channels', 'policyname': 'channels_select_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'SELECT', 'qual': '((is_public = true) OR (owner_id = current_user_id()) OR is_channel_moderator(id, current_user_id()))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'channels', 'policyname': 'channels_update_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'UPDATE', 'qual': '(owner_id = current_user_id())', 'with_check': '(owner_id = current_user_id())'}, {'schemaname': 'public', 'tablename': 'comments', 'policyname': 'comments_delete_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'DELETE', 'qual': '((author_id = current_user_id()) OR (get_post_author_id(post_id) = current_user_id()) OR can_moderate_channel(get_channel_id_from_post(post_id), current_user_id()))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'comments', 'policyname': 'comments_insert_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'INSERT', 'qual': None, 'with_check': '((current_user_id() IS NOT NULL) AND (author_id = current_user_id()) AND (EXISTS ( SELECT 1\\\\\\\\n   FROM (posts\\\\\\\\n     JOIN channels ON ((channels.id = posts.channel_id)))\\\\\\\\n  WHERE ((posts.id = comments.post_id) AND ((channels.is_public = true) OR (channels.owner_id = current_user_id()) OR is_channel_moderator(channels.id, current_user_id()))))))'}, {'schemaname': 'public', 'tablename': 'comments', 'policyname': 'comments_select_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'SELECT', 'qual': '(EXISTS ( SELECT 1\\\\\\\\n   FROM (posts\\\\\\\\n     JOIN channels ON ((channels.id = posts.channel_id)))\\\\\\\\n  WHERE ((posts.id = comments.post_id) AND ((channels.is_public = true) OR (channels.owner_id = current_user_id()) OR is_channel_moderator(channels.id, current_user_id())))))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'comments', 'policyname': 'comments_update_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'UPDATE', 'qual': '((author_id = current_user_id()) OR (get_post_author_id(post_id) = current_user_id()) OR can_moderate_channel(get_channel_id_from_post(post_id), current_user_id()))', 'with_check': '((author_id = current_user_id()) OR (get_post_author_id(post_id) = current_user_id()) OR can_moderate_channel(get_channel_id_from_post(post_id), current_user_id()))'}, {'schemaname': 'public', 'tablename': 'posts', 'policyname': 'posts_delete_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'DELETE', 'qual': '((author_id = current_user_id()) OR can_moderate_channel(channel_id, current_user_id()))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'posts', 'policyname': 'posts_insert_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'INSERT', 'qual': None, 'with_check': '((current_user_id() IS NOT NULL) AND (author_id = current_user_id()) AND (EXISTS ( SELECT 1\\\\\\\\n   FROM channels\\\\\\\\n  WHERE ((channels.id = posts.channel_id) AND ((channels.is_public = true) OR (channels.owner_id = current_user_id()) OR is_channel_moderator(channels.id, current_user_id()))))))'}, {'schemaname': 'public', 'tablename': 'posts', 'policyname': 'posts_select_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'SELECT', 'qual': '(EXISTS ( SELECT 1\\\\\\\\n   FROM channels\\\\\\\\n  WHERE ((channels.id = posts.channel_id) AND ((channels.is_public = true) OR (channels.owner_id = current_user_id()) OR is_channel_moderator(channels.id, current_user_id())))))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'posts', 'policyname': 'posts_update_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'UPDATE', 'qual': '((author_id = current_user_id()) OR can_moderate_channel(channel_id, current_user_id()))', 'with_check': '((author_id = current_user_id()) OR can_moderate_channel(channel_id, current_user_id()))'}, {'schemaname': 'public', 'tablename': 'users', 'policyname': 'users_delete_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'DELETE', 'qual': '(id = current_user_id())', 'with_check': None}, {'schemaname': 'public', 'tablename': 'users', 'policyname': 'users_select_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'SELECT', 'qual': '((is_public = true) OR (id = current_user_id()))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'users', 'policyname': 'users_update_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'UPDATE', 'qual': '(id = current_user_id())', 'with_check': '(id = current_user_id())'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'schemaname': 'public', 'tablename': 'channel_moderators', 'policyname': 'channel_moderators_delete_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'DELETE', 'qual': '(is_channel_owner(channel_id, current_user_id()) OR (user_id = current_user_id()))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'channel_moderators', 'policyname': 'channel_moderators_insert_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'INSERT', 'qual': None, 'with_check': 'is_channel_owner(channel_id, current_user_id())'}, {'schemaname': 'public', 'tablename': 'channel_moderators', 'policyname': 'channel_moderators_select_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'SELECT', 'qual': '(EXISTS ( SELECT 1\\\\\\\\n   FROM channels\\\\\\\\n  WHERE ((channels.id = channel_moderators.channel_id) AND ((channels.is_public = true) OR (channels.owner_id = current_user_id()) OR is_channel_moderator(channels.id, current_user_id())))))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'channels', 'policyname': 'channels_delete_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'DELETE', 'qual': '(owner_id = current_user_id())', 'with_check': None}, {'schemaname': 'public', 'tablename': 'channels', 'policyname': 'channels_insert_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'INSERT', 'qual': None, 'with_check': '((current_user_id() IS NOT NULL) AND (owner_id = current_user_id()))'}, {'schemaname': 'public', 'tablename': 'channels', 'policyname': 'channels_select_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'SELECT', 'qual': '((is_public = true) OR (owner_id = current_user_id()) OR is_channel_moderator(id, current_user_id()))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'channels', 'policyname': 'channels_update_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'UPDATE', 'qual': '(owner_id = current_user_id())', 'with_check': '(owner_id = current_user_id())'}, {'schemaname': 'public', 'tablename': 'comments', 'policyname': 'comments_delete_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'DELETE', 'qual': '((author_id = current_user_id()) OR (get_post_author_id(post_id) = current_user_id()) OR can_moderate_channel(get_channel_id_from_post(post_id), current_user_id()))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'comments', 'policyname': 'comments_insert_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'INSERT', 'qual': None, 'with_check': '((current_user_id() IS NOT NULL) AND (author_id = current_user_id()) AND (EXISTS ( SELECT 1\\\\\\\\n   FROM (posts\\\\\\\\n     JOIN channels ON ((channels.id = posts.channel_id)))\\\\\\\\n  WHERE ((posts.id = comments.post_id) AND ((channels.is_public = true) OR (channels.owner_id = current_user_id()) OR is_channel_moderator(channels.id, current_user_id()))))))'}, {'schemaname': 'public', 'tablename': 'comments', 'policyname': 'comments_select_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'SELECT', 'qual': '(EXISTS ( SELECT 1\\\\\\\\n   FROM (posts\\\\\\\\n     JOIN channels ON ((channels.id = posts.channel_id)))\\\\\\\\n  WHERE ((posts.id = comments.post_id) AND ((channels.is_public = true) OR (channels.owner_id = current_user_id()) OR is_channel_moderator(channels.id, current_user_id())))))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'comments', 'policyname': 'comments_update_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'UPDATE', 'qual': '((author_id = current_user_id()) OR (get_post_author_id(post_id) = current_user_id()) OR can_moderate_channel(get_channel_id_from_post(post_id), current_user_id()))', 'with_check': '((author_id = current_user_id()) OR (get_post_author_id(post_id) = current_user_id()) OR can_moderate_channel(get_channel_id_from_post(post_id), current_user_id()))'}, {'schemaname': 'public', 'tablename': 'posts', 'policyname': 'posts_delete_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'DELETE', 'qual': '((author_id = current_user_id()) OR can_moderate_channel(channel_id, current_user_id()))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'posts', 'policyname': 'posts_insert_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'INSERT', 'qual': None, 'with_check': '((current_user_id() IS NOT NULL) AND (author_id = current_user_id()) AND (EXISTS ( SELECT 1\\\\\\\\n   FROM channels\\\\\\\\n  WHERE ((channels.id = posts.channel_id) AND ((channels.is_public = true) OR (channels.owner_id = current_user_id()) OR is_channel_moderator(channels.id, current_user_id()))))))'}, {'schemaname': 'public', 'tablename': 'posts', 'policyname': 'posts_select_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'SELECT', 'qual': '(EXISTS ( SELECT 1\\\\\\\\n   FROM channels\\\\\\\\n  WHERE ((channels.id = posts.channel_id) AND ((channels.is_public = true) OR (channels.owner_id = current_user_id()) OR is_channel_moderator(channels.id, current_user_id())))))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'posts', 'policyname': 'posts_update_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'UPDATE', 'qual': '((author_id = current_user_id()) OR can_moderate_channel(channel_id, current_user_id()))', 'with_check': '((author_id = current_user_id()) OR can_moderate_channel(channel_id, current_user_id()))'}, {'schemaname': 'public', 'tablename': 'users', 'policyname': 'users_delete_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'DELETE', 'qual': '(id = current_user_id())', 'with_check': None}, {'schemaname': 'public', 'tablename': 'users', 'policyname': 'users_select_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'SELECT', 'qual': '((is_public = true) OR (id = current_user_id()))', 'with_check': None}, {'schemaname': 'public', 'tablename': 'users', 'policyname': 'users_update_policy', 'permissive': 'PERMISSIVE', 'roles': ['public'], 'cmd': 'UPDATE', 'qual': '(id = current_user_id())', 'with_check': '(id = current_user_id())'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Perfect! Now let me verify the RLS status of all tables:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Verify RLS is enabled on all tables\\nSELECT \\n    schemaname,\\n    tablename,\\n    rowsecurity AS rls_enabled,\\n    CASE \\n        WHEN rowsecurity THEN '\\u2713 Enabled'\\n        ELSE '\\u2717 Disabled'\\n    END AS status\\nFROM pg_tables\\nWHERE schemaname = 'public'\\nAND tablename IN ('users', 'channels', 'posts', 'comments', 'channel_moderators')\\nORDER BY tablename;\\n\"}",
+    "call_id": "toolu_01KyBtxZgwCoAM8g4Nf8aj1L",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01KyBtxZgwCoAM8g4Nf8aj1L",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'schemaname': 'public', 'tablename': 'channel_moderators', 'rls_enabled': True, 'status': '\\\\u2713 Enabled'}, {'schemaname': 'public', 'tablename': 'channels', 'rls_enabled': True, 'status': '\\\\u2713 Enabled'}, {'schemaname': 'public', 'tablename': 'comments', 'rls_enabled': True, 'status': '\\\\u2713 Enabled'}, {'schemaname': 'public', 'tablename': 'posts', 'rls_enabled': True, 'status': '\\\\u2713 Enabled'}, {'schemaname': 'public', 'tablename': 'users', 'rls_enabled': True, 'status': '\\\\u2713 Enabled'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'schemaname': 'public', 'tablename': 'channel_moderators', 'rls_enabled': True, 'status': '\\\\u2713 Enabled'}, {'schemaname': 'public', 'tablename': 'channels', 'rls_enabled': True, 'status': '\\\\u2713 Enabled'}, {'schemaname': 'public', 'tablename': 'comments', 'rls_enabled': True, 'status': '\\\\u2713 Enabled'}, {'schemaname': 'public', 'tablename': 'posts', 'rls_enabled': True, 'status': '\\\\u2713 Enabled'}, {'schemaname': 'public', 'tablename': 'users', 'rls_enabled': True, 'status': '\\\\u2713 Enabled'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Excellent! Now let me create a comprehensive summary document:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Create comprehensive summary of helper functions\\nSELECT \\n    routine_name AS function_name,\\n    routine_type AS type,\\n    data_type AS return_type,\\n    pg_get_functiondef(p.oid) AS definition\\nFROM information_schema.routines r\\nJOIN pg_proc p ON p.proname = r.routine_name\\nWHERE routine_schema = 'public'\\nAND routine_name IN (\\n    'current_user_id',\\n    'is_channel_owner',\\n    'is_channel_moderator',\\n    'can_moderate_channel',\\n    'get_channel_id_from_post',\\n    'get_post_author_id'\\n)\\nORDER BY routine_name;\\n\"}",
+    "call_id": "toolu_01Ms6QKgYXsWdGXoL4QoW8TX",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01Ms6QKgYXsWdGXoL4QoW8TX",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'function_name': 'can_moderate_channel', 'type': 'FUNCTION', 'return_type': 'boolean', 'definition': 'CREATE OR REPLACE FUNCTION public.can_moderate_channel(p_channel_id uuid, p_user_id uuid)\\\\\\\\n RETURNS boolean\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN public.is_channel_owner(p_channel_id, p_user_id) \\\\\\\\n      OR public.is_channel_moderator(p_channel_id, p_user_id);\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n'}, {'function_name': 'current_user_id', 'type': 'FUNCTION', 'return_type': 'uuid', 'definition': \\\\\\\"CREATE OR REPLACE FUNCTION public.current_user_id()\\\\\\\\n RETURNS uuid\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN current_setting('app.current_user_id', true)::uuid;\\\\\\\\nEXCEPTION\\\\\\\\n  WHEN OTHERS THEN\\\\\\\\n    RETURN NULL;\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n\\\\\\\"}, {'function_name': 'get_channel_id_from_post', 'type': 'FUNCTION', 'return_type': 'uuid', 'definition': 'CREATE OR REPLACE FUNCTION public.get_channel_id_from_post(p_post_id uuid)\\\\\\\\n RETURNS uuid\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN (SELECT channel_id FROM public.posts WHERE id = p_post_id);\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n'}, {'function_name': 'get_post_author_id', 'type': 'FUNCTION', 'return_type': 'uuid', 'definition': 'CREATE OR REPLACE FUNCTION public.get_post_author_id(p_post_id uuid)\\\\\\\\n RETURNS uuid\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN (SELECT author_id FROM public.posts WHERE id = p_post_id);\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n'}, {'function_name': 'is_channel_moderator', 'type': 'FUNCTION', 'return_type': 'boolean', 'definition': 'CREATE OR REPLACE FUNCTION public.is_channel_moderator(p_channel_id uuid, p_user_id uuid)\\\\\\\\n RETURNS boolean\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN EXISTS (\\\\\\\\n    SELECT 1 \\\\\\\\n    FROM public.channel_moderators \\\\\\\\n    WHERE channel_id = p_channel_id \\\\\\\\n    AND user_id = p_user_id\\\\\\\\n  );\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n'}, {'function_name': 'is_channel_owner', 'type': 'FUNCTION', 'return_type': 'boolean', 'definition': 'CREATE OR REPLACE FUNCTION public.is_channel_owner(p_channel_id uuid, p_user_id uuid)\\\\\\\\n RETURNS boolean\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN EXISTS (\\\\\\\\n    SELECT 1 \\\\\\\\n    FROM public.channels \\\\\\\\n    WHERE id = p_channel_id \\\\\\\\n    AND owner_id = p_user_id\\\\\\\\n  );\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'function_name': 'can_moderate_channel', 'type': 'FUNCTION', 'return_type': 'boolean', 'definition': 'CREATE OR REPLACE FUNCTION public.can_moderate_channel(p_channel_id uuid, p_user_id uuid)\\\\\\\\n RETURNS boolean\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN public.is_channel_owner(p_channel_id, p_user_id) \\\\\\\\n      OR public.is_channel_moderator(p_channel_id, p_user_id);\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n'}, {'function_name': 'current_user_id', 'type': 'FUNCTION', 'return_type': 'uuid', 'definition': \\\\\\\"CREATE OR REPLACE FUNCTION public.current_user_id()\\\\\\\\n RETURNS uuid\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN current_setting('app.current_user_id', true)::uuid;\\\\\\\\nEXCEPTION\\\\\\\\n  WHEN OTHERS THEN\\\\\\\\n    RETURN NULL;\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n\\\\\\\"}, {'function_name': 'get_channel_id_from_post', 'type': 'FUNCTION', 'return_type': 'uuid', 'definition': 'CREATE OR REPLACE FUNCTION public.get_channel_id_from_post(p_post_id uuid)\\\\\\\\n RETURNS uuid\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN (SELECT channel_id FROM public.posts WHERE id = p_post_id);\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n'}, {'function_name': 'get_post_author_id', 'type': 'FUNCTION', 'return_type': 'uuid', 'definition': 'CREATE OR REPLACE FUNCTION public.get_post_author_id(p_post_id uuid)\\\\\\\\n RETURNS uuid\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN (SELECT author_id FROM public.posts WHERE id = p_post_id);\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n'}, {'function_name': 'is_channel_moderator', 'type': 'FUNCTION', 'return_type': 'boolean', 'definition': 'CREATE OR REPLACE FUNCTION public.is_channel_moderator(p_channel_id uuid, p_user_id uuid)\\\\\\\\n RETURNS boolean\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN EXISTS (\\\\\\\\n    SELECT 1 \\\\\\\\n    FROM public.channel_moderators \\\\\\\\n    WHERE channel_id = p_channel_id \\\\\\\\n    AND user_id = p_user_id\\\\\\\\n  );\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n'}, {'function_name': 'is_channel_owner', 'type': 'FUNCTION', 'return_type': 'boolean', 'definition': 'CREATE OR REPLACE FUNCTION public.is_channel_owner(p_channel_id uuid, p_user_id uuid)\\\\\\\\n RETURNS boolean\\\\\\\\n LANGUAGE plpgsql\\\\\\\\n STABLE SECURITY DEFINER\\\\\\\\nAS $function$\\\\\\\\nBEGIN\\\\\\\\n  RETURN EXISTS (\\\\\\\\n    SELECT 1 \\\\\\\\n    FROM public.channels \\\\\\\\n    WHERE id = p_channel_id \\\\\\\\n    AND owner_id = p_user_id\\\\\\\\n  );\\\\\\\\nEND;\\\\\\\\n$function$\\\\\\\\n'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Now let me create a summary count of policies per table:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Summary: Count of RLS policies per table and operation\\nSELECT \\n    tablename,\\n    cmd AS operation,\\n    COUNT(*) AS policy_count\\nFROM pg_policies\\nWHERE schemaname = 'public'\\nGROUP BY tablename, cmd\\nORDER BY tablename, \\n    CASE cmd \\n        WHEN 'SELECT' THEN 1 \\n        WHEN 'INSERT' THEN 2 \\n        WHEN 'UPDATE' THEN 3 \\n        WHEN 'DELETE' THEN 4 \\n    END;\\n\"}",
+    "call_id": "toolu_01Fw4pTQUwgjLrQGEUTz3mof",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01Fw4pTQUwgjLrQGEUTz3mof",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'tablename': 'channel_moderators', 'operation': 'SELECT', 'policy_count': 1}, {'tablename': 'channel_moderators', 'operation': 'INSERT', 'policy_count': 1}, {'tablename': 'channel_moderators', 'operation': 'DELETE', 'policy_count': 1}, {'tablename': 'channels', 'operation': 'SELECT', 'policy_count': 1}, {'tablename': 'channels', 'operation': 'INSERT', 'policy_count': 1}, {'tablename': 'channels', 'operation': 'UPDATE', 'policy_count': 1}, {'tablename': 'channels', 'operation': 'DELETE', 'policy_count': 1}, {'tablename': 'comments', 'operation': 'SELECT', 'policy_count': 1}, {'tablename': 'comments', 'operation': 'INSERT', 'policy_count': 1}, {'tablename': 'comments', 'operation': 'UPDATE', 'policy_count': 1}, {'tablename': 'comments', 'operation': 'DELETE', 'policy_count': 1}, {'tablename': 'posts', 'operation': 'SELECT', 'policy_count': 1}, {'tablename': 'posts', 'operation': 'INSERT', 'policy_count': 1}, {'tablename': 'posts', 'operation': 'UPDATE', 'policy_count': 1}, {'tablename': 'posts', 'operation': 'DELETE', 'policy_count': 1}, {'tablename': 'users', 'operation': 'SELECT', 'policy_count': 1}, {'tablename': 'users', 'operation': 'UPDATE', 'policy_count': 1}, {'tablename': 'users', 'operation': 'DELETE', 'policy_count': 1}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'tablename': 'channel_moderators', 'operation': 'SELECT', 'policy_count': 1}, {'tablename': 'channel_moderators', 'operation': 'INSERT', 'policy_count': 1}, {'tablename': 'channel_moderators', 'operation': 'DELETE', 'policy_count': 1}, {'tablename': 'channels', 'operation': 'SELECT', 'policy_count': 1}, {'tablename': 'channels', 'operation': 'INSERT', 'policy_count': 1}, {'tablename': 'channels', 'operation': 'UPDATE', 'policy_count': 1}, {'tablename': 'channels', 'operation': 'DELETE', 'policy_count': 1}, {'tablename': 'comments', 'operation': 'SELECT', 'policy_count': 1}, {'tablename': 'comments', 'operation': 'INSERT', 'policy_count': 1}, {'tablename': 'comments', 'operation': 'UPDATE', 'policy_count': 1}, {'tablename': 'comments', 'operation': 'DELETE', 'policy_count': 1}, {'tablename': 'posts', 'operation': 'SELECT', 'policy_count': 1}, {'tablename': 'posts', 'operation': 'INSERT', 'policy_count': 1}, {'tablename': 'posts', 'operation': 'UPDATE', 'policy_count': 1}, {'tablename': 'posts', 'operation': 'DELETE', 'policy_count': 1}, {'tablename': 'users', 'operation': 'SELECT', 'policy_count': 1}, {'tablename': 'users', 'operation': 'UPDATE', 'policy_count': 1}, {'tablename': 'users', 'operation': 'DELETE', 'policy_count': 1}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Perfect! Now let me verify all the indexes we created:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- List all indexes related to RLS optimization\\nSELECT \\n    schemaname,\\n    tablename,\\n    indexname,\\n    indexdef\\nFROM pg_indexes\\nWHERE schemaname = 'public'\\nAND tablename IN ('users', 'channels', 'posts', 'comments', 'channel_moderators')\\nORDER BY tablename, indexname;\\n\"}",
+    "call_id": "toolu_017aWZjWvrKmZZgsYsj13e5R",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_017aWZjWvrKmZZgsYsj13e5R",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'schemaname': 'public', 'tablename': 'channel_moderators', 'indexname': 'channel_moderators_pkey', 'indexdef': 'CREATE UNIQUE INDEX channel_moderators_pkey ON public.channel_moderators USING btree (channel_id, user_id)'}, {'schemaname': 'public', 'tablename': 'channel_moderators', 'indexname': 'idx_channel_moderators_channel_user', 'indexdef': 'CREATE INDEX idx_channel_moderators_channel_user ON public.channel_moderators USING btree (channel_id, user_id)'}, {'schemaname': 'public', 'tablename': 'channel_moderators', 'indexname': 'idx_channel_moderators_user', 'indexdef': 'CREATE INDEX idx_channel_moderators_user ON public.channel_moderators USING btree (user_id)'}, {'schemaname': 'public', 'tablename': 'channel_moderators', 'indexname': 'idx_channel_moderators_user_channel', 'indexdef': 'CREATE INDEX idx_channel_moderators_user_channel ON public.channel_moderators USING btree (user_id, channel_id)'}, {'schemaname': 'public', 'tablename': 'channels', 'indexname': 'channels_pkey', 'indexdef': 'CREATE UNIQUE INDEX channels_pkey ON public.channels USING btree (id)'}, {'schemaname': 'public', 'tablename': 'channels', 'indexname': 'idx_channels_is_public', 'indexdef': 'CREATE INDEX idx_channels_is_public ON public.channels USING btree (is_public)'}, {'schemaname': 'public', 'tablename': 'channels', 'indexname': 'idx_channels_owner_id', 'indexdef': 'CREATE INDEX idx_channels_owner_id ON public.channels USING btree (owner_id)'}, {'schemaname': 'public', 'tablename': 'channels', 'indexname': 'idx_channels_public_owner', 'indexdef': 'CREATE INDEX idx_channels_public_owner ON public.channels USING btree (is_public, owner_id)'}, {'schemaname': 'public', 'tablename': 'comments', 'indexname': 'comments_pkey', 'indexdef': 'CREATE UNIQUE INDEX comments_pkey ON public.comments USING btree (id)'}, {'schemaname': 'public', 'tablename': 'comments', 'indexname': 'idx_comments_author_id', 'indexdef': 'CREATE INDEX idx_comments_author_id ON public.comments USING btree (author_id)'}, {'schemaname': 'public', 'tablename': 'comments', 'indexname': 'idx_comments_created_at', 'indexdef': 'CREATE INDEX idx_comments_created_at ON public.comments USING btree (created_at)'}, {'schemaname': 'public', 'tablename': 'comments', 'indexname': 'idx_comments_post_author', 'indexdef': 'CREATE INDEX idx_comments_post_author ON public.comments USING btree (post_id, author_id)'}, {'schemaname': 'public', 'tablename': 'comments', 'indexname': 'idx_comments_post_id', 'indexdef': 'CREATE INDEX idx_comments_post_id ON public.comments USING btree (post_id)'}, {'schemaname': 'public', 'tablename': 'posts', 'indexname': 'idx_posts_author_id', 'indexdef': 'CREATE INDEX idx_posts_author_id ON public.posts USING btree (author_id)'}, {'schemaname': 'public', 'tablename': 'posts', 'indexname': 'idx_posts_channel_author', 'indexdef': 'CREATE INDEX idx_posts_channel_author ON public.posts USING btree (channel_id, author_id)'}, {'schemaname': 'public', 'tablename': 'posts', 'indexname': 'idx_posts_channel_id', 'indexdef': 'CREATE INDEX idx_posts_channel_id ON public.posts USING btree (channel_id)'}, {'schemaname': 'public', 'tablename': 'posts', 'indexname': 'idx_posts_created_at', 'indexdef': 'CREATE INDEX idx_posts_created_at ON public.posts USING btree (created_at)'}, {'schemaname': 'public', 'tablename': 'posts', 'indexname': 'posts_pkey', 'indexdef': 'CREATE UNIQUE INDEX posts_pkey ON public.posts USING btree (id)'}, {'schemaname': 'public', 'tablename': 'users', 'indexname': 'idx_users_is_public', 'indexdef': 'CREATE INDEX idx_users_is_public ON public.users USING btree (is_public)'}, {'schemaname': 'public', 'tablename': 'users', 'indexname': 'users_email_key', 'indexdef': 'CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)'}, {'schemaname': 'public', 'tablename': 'users', 'indexname': 'users_pkey', 'indexdef': 'CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)'}, {'schemaname': 'public', 'tablename': 'users', 'indexname': 'users_username_key', 'indexdef': 'CREATE UNIQUE INDEX users_username_key ON public.users USING btree (username)'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'schemaname': 'public', 'tablename': 'channel_moderators', 'indexname': 'channel_moderators_pkey', 'indexdef': 'CREATE UNIQUE INDEX channel_moderators_pkey ON public.channel_moderators USING btree (channel_id, user_id)'}, {'schemaname': 'public', 'tablename': 'channel_moderators', 'indexname': 'idx_channel_moderators_channel_user', 'indexdef': 'CREATE INDEX idx_channel_moderators_channel_user ON public.channel_moderators USING btree (channel_id, user_id)'}, {'schemaname': 'public', 'tablename': 'channel_moderators', 'indexname': 'idx_channel_moderators_user', 'indexdef': 'CREATE INDEX idx_channel_moderators_user ON public.channel_moderators USING btree (user_id)'}, {'schemaname': 'public', 'tablename': 'channel_moderators', 'indexname': 'idx_channel_moderators_user_channel', 'indexdef': 'CREATE INDEX idx_channel_moderators_user_channel ON public.channel_moderators USING btree (user_id, channel_id)'}, {'schemaname': 'public', 'tablename': 'channels', 'indexname': 'channels_pkey', 'indexdef': 'CREATE UNIQUE INDEX channels_pkey ON public.channels USING btree (id)'}, {'schemaname': 'public', 'tablename': 'channels', 'indexname': 'idx_channels_is_public', 'indexdef': 'CREATE INDEX idx_channels_is_public ON public.channels USING btree (is_public)'}, {'schemaname': 'public', 'tablename': 'channels', 'indexname': 'idx_channels_owner_id', 'indexdef': 'CREATE INDEX idx_channels_owner_id ON public.channels USING btree (owner_id)'}, {'schemaname': 'public', 'tablename': 'channels', 'indexname': 'idx_channels_public_owner', 'indexdef': 'CREATE INDEX idx_channels_public_owner ON public.channels USING btree (is_public, owner_id)'}, {'schemaname': 'public', 'tablename': 'comments', 'indexname': 'comments_pkey', 'indexdef': 'CREATE UNIQUE INDEX comments_pkey ON public.comments USING btree (id)'}, {'schemaname': 'public', 'tablename': 'comments', 'indexname': 'idx_comments_author_id', 'indexdef': 'CREATE INDEX idx_comments_author_id ON public.comments USING btree (author_id)'}, {'schemaname': 'public', 'tablename': 'comments', 'indexname': 'idx_comments_created_at', 'indexdef': 'CREATE INDEX idx_comments_created_at ON public.comments USING btree (created_at)'}, {'schemaname': 'public', 'tablename': 'comments', 'indexname': 'idx_comments_post_author', 'indexdef': 'CREATE INDEX idx_comments_post_author ON public.comments USING btree (post_id, author_id)'}, {'schemaname': 'public', 'tablename': 'comments', 'indexname': 'idx_comments_post_id', 'indexdef': 'CREATE INDEX idx_comments_post_id ON public.comments USING btree (post_id)'}, {'schemaname': 'public', 'tablename': 'posts', 'indexname': 'idx_posts_author_id', 'indexdef': 'CREATE INDEX idx_posts_author_id ON public.posts USING btree (author_id)'}, {'schemaname': 'public', 'tablename': 'posts', 'indexname': 'idx_posts_channel_author', 'indexdef': 'CREATE INDEX idx_posts_channel_author ON public.posts USING btree (channel_id, author_id)'}, {'schemaname': 'public', 'tablename': 'posts', 'indexname': 'idx_posts_channel_id', 'indexdef': 'CREATE INDEX idx_posts_channel_id ON public.posts USING btree (channel_id)'}, {'schemaname': 'public', 'tablename': 'posts', 'indexname': 'idx_posts_created_at', 'indexdef': 'CREATE INDEX idx_posts_created_at ON public.posts USING btree (created_at)'}, {'schemaname': 'public', 'tablename': 'posts', 'indexname': 'posts_pkey', 'indexdef': 'CREATE UNIQUE INDEX posts_pkey ON public.posts USING btree (id)'}, {'schemaname': 'public', 'tablename': 'users', 'indexname': 'idx_users_is_public', 'indexdef': 'CREATE INDEX idx_users_is_public ON public.users USING btree (is_public)'}, {'schemaname': 'public', 'tablename': 'users', 'indexname': 'users_email_key', 'indexdef': 'CREATE UNIQUE INDEX users_email_key ON public.users USING btree (email)'}, {'schemaname': 'public', 'tablename': 'users', 'indexname': 'users_pkey', 'indexdef': 'CREATE UNIQUE INDEX users_pkey ON public.users USING btree (id)'}, {'schemaname': 'public', 'tablename': 'users', 'indexname': 'users_username_key', 'indexdef': 'CREATE UNIQUE INDEX users_username_key ON public.users USING btree (username)'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Excellent! Now let me create a final comprehensive implementation document:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Create a comprehensive implementation summary document\\nCREATE OR REPLACE VIEW public.rls_implementation_summary AS\\nWITH policy_summary AS (\\n    SELECT \\n        tablename,\\n        COUNT(*) as total_policies,\\n        COUNT(*) FILTER (WHERE cmd = 'SELECT') as select_policies,\\n        COUNT(*) FILTER (WHERE cmd = 'INSERT') as insert_policies,\\n        COUNT(*) FILTER (WHERE cmd = 'UPDATE') as update_policies,\\n        COUNT(*) FILTER (WHERE cmd = 'DELETE') as delete_policies\\n    FROM pg_policies\\n    WHERE schemaname = 'public'\\n    GROUP BY tablename\\n),\\ntable_info AS (\\n    SELECT \\n        schemaname,\\n        tablename,\\n        rowsecurity as rls_enabled\\n    FROM pg_tables\\n    WHERE schemaname = 'public'\\n    AND tablename IN ('users', 'channels', 'posts', 'comments', 'channel_moderators')\\n)\\nSELECT \\n    t.tablename,\\n    t.rls_enabled,\\n    COALESCE(p.total_policies, 0) as total_policies,\\n    COALESCE(p.select_policies, 0) as select_policies,\\n    COALESCE(p.insert_policies, 0) as insert_policies,\\n    COALESCE(p.update_policies, 0) as update_policies,\\n    COALESCE(p.delete_policies, 0) as delete_policies,\\n    CASE \\n        WHEN t.rls_enabled AND COALESCE(p.total_policies, 0) > 0 THEN '\\u2713 Fully Protected'\\n        WHEN t.rls_enabled AND COALESCE(p.total_policies, 0) = 0 THEN '\\u26a0 RLS Enabled but No Policies'\\n        ELSE '\\u2717 Not Protected'\\n    END as security_status\\nFROM table_info t\\nLEFT JOIN policy_summary p ON t.tablename = p.tablename\\nORDER BY t.tablename;\\n\\n-- Display the summary\\nSELECT * FROM public.rls_implementation_summary;\\n\"}",
+    "call_id": "toolu_013z1s9YjPpSM3xuXMvC39Cz",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_013z1s9YjPpSM3xuXMvC39Cz",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'tablename': 'channel_moderators', 'rls_enabled': True, 'total_policies': 3, 'select_policies': 1, 'insert_policies': 1, 'update_policies': 0, 'delete_policies': 1, 'security_status': '\\\\u2713 Fully Protected'}, {'tablename': 'channels', 'rls_enabled': True, 'total_policies': 4, 'select_policies': 1, 'insert_policies': 1, 'update_policies': 1, 'delete_policies': 1, 'security_status': '\\\\u2713 Fully Protected'}, {'tablename': 'comments', 'rls_enabled': True, 'total_policies': 4, 'select_policies': 1, 'insert_policies': 1, 'update_policies': 1, 'delete_policies': 1, 'security_status': '\\\\u2713 Fully Protected'}, {'tablename': 'posts', 'rls_enabled': True, 'total_policies': 4, 'select_policies': 1, 'insert_policies': 1, 'update_policies': 1, 'delete_policies': 1, 'security_status': '\\\\u2713 Fully Protected'}, {'tablename': 'users', 'rls_enabled': True, 'total_policies': 3, 'select_policies': 1, 'insert_policies': 0, 'update_policies': 1, 'delete_policies': 1, 'security_status': '\\\\u2713 Fully Protected'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'tablename': 'channel_moderators', 'rls_enabled': True, 'total_policies': 3, 'select_policies': 1, 'insert_policies': 1, 'update_policies': 0, 'delete_policies': 1, 'security_status': '\\\\u2713 Fully Protected'}, {'tablename': 'channels', 'rls_enabled': True, 'total_policies': 4, 'select_policies': 1, 'insert_policies': 1, 'update_policies': 1, 'delete_policies': 1, 'security_status': '\\\\u2713 Fully Protected'}, {'tablename': 'comments', 'rls_enabled': True, 'total_policies': 4, 'select_policies': 1, 'insert_policies': 1, 'update_policies': 1, 'delete_policies': 1, 'security_status': '\\\\u2713 Fully Protected'}, {'tablename': 'posts', 'rls_enabled': True, 'total_policies': 4, 'select_policies': 1, 'insert_policies': 1, 'update_policies': 1, 'delete_policies': 1, 'security_status': '\\\\u2713 Fully Protected'}, {'tablename': 'users', 'rls_enabled': True, 'total_policies': 3, 'select_policies': 1, 'insert_policies': 0, 'update_policies': 1, 'delete_policies': 1, 'security_status': '\\\\u2713 Fully Protected'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Perfect! Let me create one final document showing how to use the RLS system:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Create usage examples and documentation\\nCOMMENT ON SCHEMA public IS 'Social Media Platform with Row Level Security';\\n\\n-- Document the RLS system usage\\nDO $$\\nBEGIN\\n    -- Document how to set session context\\n    RAISE NOTICE '';\\n    RAISE NOTICE '====================================================================';\\n    RAISE NOTICE 'Row Level Security (RLS) Implementation Complete!';\\n    RAISE NOTICE '====================================================================';\\n    RAISE NOTICE '';\\n    RAISE NOTICE 'USAGE INSTRUCTIONS:';\\n    RAISE NOTICE '-------------------';\\n    RAISE NOTICE '';\\n    RAISE NOTICE '1. Set the current user context before queries:';\\n    RAISE NOTICE '   SET app.current_user_id = ''<user-uuid>'';';\\n    RAISE NOTICE '';\\n    RAISE NOTICE '2. Example: Set user context';\\n    RAISE NOTICE '   SET app.current_user_id = ''123e4567-e89b-12d3-a456-426614174000'';';\\n    RAISE NOTICE '';\\n    RAISE NOTICE '3. Reset user context (logout):';\\n    RAISE NOTICE '   RESET app.current_user_id;';\\n    RAISE NOTICE '';\\n    RAISE NOTICE 'HELPER FUNCTIONS AVAILABLE:';\\n    RAISE NOTICE '----------------------------';\\n    RAISE NOTICE '- current_user_id() - Get current user from session';\\n    RAISE NOTICE '- is_channel_owner(channel_id, user_id) - Check channel ownership';\\n    RAISE NOTICE '- is_channel_moderator(channel_id, user_id) - Check moderator status';\\n    RAISE NOTICE '- can_moderate_channel(channel_id, user_id) - Check moderation rights';\\n    RAISE NOTICE '- get_channel_id_from_post(post_id) - Get channel from post';\\n    RAISE NOTICE '- get_post_author_id(post_id) - Get post author';\\n    RAISE NOTICE '';\\n    RAISE NOTICE 'SECURITY FEATURES:';\\n    RAISE NOTICE '------------------';\\n    RAISE NOTICE '\\u2713 5 tables protected with RLS';\\n    RAISE NOTICE '\\u2713 18 total RLS policies implemented';\\n    RAISE NOTICE '\\u2713 6 helper functions for permission checks';\\n    RAISE NOTICE '\\u2713 Performance indexes optimized for RLS';\\n    RAISE NOTICE '\\u2713 Content ownership validation';\\n    RAISE NOTICE '\\u2713 Moderation hierarchy support';\\n    RAISE NOTICE '\\u2713 Channel-based access control';\\n    RAISE NOTICE '';\\n    RAISE NOTICE 'MONITORING VIEWS:';\\n    RAISE NOTICE '-----------------';\\n    RAISE NOTICE '- rls_policy_summary - View all RLS policies';\\n    RAISE NOTICE '- rls_implementation_summary - Security status overview';\\n    RAISE NOTICE '';\\n    RAISE NOTICE '====================================================================';\\nEND $$;\\n\"}",
+    "call_id": "toolu_01A9nnWn7rzNxTQbaWU5sAd3",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01A9nnWn7rzNxTQbaWU5sAd3",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"No results\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Perfect! Now let me create a final test script to demonstrate the RLS policies work correctly:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Create a comprehensive test to validate RLS policies\\n-- This creates test data and validates the policies\\n\\n-- Test 1: Verify all helper functions exist and work\\nSELECT \\n    'Helper Functions Check' as test_category,\\n    routine_name,\\n    'EXISTS' as status\\nFROM information_schema.routines\\nWHERE routine_schema = 'public'\\nAND routine_name IN (\\n    'current_user_id',\\n    'is_channel_owner',\\n    'is_channel_moderator',\\n    'can_moderate_channel',\\n    'get_channel_id_from_post',\\n    'get_post_author_id'\\n)\\nORDER BY routine_name;\\n\"}",
+    "call_id": "toolu_015auEaBUaSAQrjgpV62NNKZ",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_015auEaBUaSAQrjgpV62NNKZ",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'test_category': 'Helper Functions Check', 'routine_name': 'can_moderate_channel', 'status': 'EXISTS'}, {'test_category': 'Helper Functions Check', 'routine_name': 'current_user_id', 'status': 'EXISTS'}, {'test_category': 'Helper Functions Check', 'routine_name': 'get_channel_id_from_post', 'status': 'EXISTS'}, {'test_category': 'Helper Functions Check', 'routine_name': 'get_post_author_id', 'status': 'EXISTS'}, {'test_category': 'Helper Functions Check', 'routine_name': 'is_channel_moderator', 'status': 'EXISTS'}, {'test_category': 'Helper Functions Check', 'routine_name': 'is_channel_owner', 'status': 'EXISTS'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'test_category': 'Helper Functions Check', 'routine_name': 'can_moderate_channel', 'status': 'EXISTS'}, {'test_category': 'Helper Functions Check', 'routine_name': 'current_user_id', 'status': 'EXISTS'}, {'test_category': 'Helper Functions Check', 'routine_name': 'get_channel_id_from_post', 'status': 'EXISTS'}, {'test_category': 'Helper Functions Check', 'routine_name': 'get_post_author_id', 'status': 'EXISTS'}, {'test_category': 'Helper Functions Check', 'routine_name': 'is_channel_moderator', 'status': 'EXISTS'}, {'test_category': 'Helper Functions Check', 'routine_name': 'is_channel_owner', 'status': 'EXISTS'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Excellent! Now let me create a final comprehensive summary document:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Final comprehensive validation and summary\\nSELECT \\n    'RLS IMPLEMENTATION COMPLETE' as status,\\n    (SELECT COUNT(*) FROM pg_policies WHERE schemaname = 'public') as total_policies,\\n    (SELECT COUNT(DISTINCT tablename) FROM pg_policies WHERE schemaname = 'public') as tables_protected,\\n    (SELECT COUNT(*) FROM information_schema.routines \\n     WHERE routine_schema = 'public' \\n     AND routine_name IN ('current_user_id', 'is_channel_owner', 'is_channel_moderator', \\n                          'can_moderate_channel', 'get_channel_id_from_post', 'get_post_author_id')\\n    ) as helper_functions,\\n    (SELECT COUNT(*) FROM pg_indexes \\n     WHERE schemaname = 'public' \\n     AND tablename IN ('users', 'channels', 'posts', 'comments', 'channel_moderators')\\n    ) as performance_indexes;\\n\"}",
+    "call_id": "toolu_019e1u4KGkomwGpdRS8ZbEek",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_019e1u4KGkomwGpdRS8ZbEek",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'status': 'RLS IMPLEMENTATION COMPLETE', 'total_policies': 18, 'tables_protected': 5, 'helper_functions': 6, 'performance_indexes': 22}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'status': 'RLS IMPLEMENTATION COMPLETE', 'total_policies': 18, 'tables_protected': 5, 'helper_functions': 6, 'performance_indexes': 22}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Perfect! Let me create one final detailed policy breakdown:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Detailed policy breakdown by table\\nSELECT \\n    tablename as \\\"Table\\\",\\n    policyname as \\\"Policy Name\\\",\\n    cmd as \\\"Operation\\\",\\n    CASE \\n        WHEN cmd = 'SELECT' THEN 'Read Access'\\n        WHEN cmd = 'INSERT' THEN 'Create Access'\\n        WHEN cmd = 'UPDATE' THEN 'Modify Access'\\n        WHEN cmd = 'DELETE' THEN 'Delete Access'\\n    END as \\\"Access Type\\\",\\n    CASE tablename\\n        WHEN 'users' THEN \\n            CASE cmd\\n                WHEN 'SELECT' THEN 'Public profiles + Own profile'\\n                WHEN 'UPDATE' THEN 'Own profile only'\\n                WHEN 'DELETE' THEN 'Own account only'\\n            END\\n        WHEN 'channels' THEN\\n            CASE cmd\\n                WHEN 'SELECT' THEN 'Public channels + Owned/Moderated'\\n                WHEN 'INSERT' THEN 'Authenticated users (become owner)'\\n                WHEN 'UPDATE' THEN 'Channel owners only'\\n                WHEN 'DELETE' THEN 'Channel owners only'\\n            END\\n        WHEN 'posts' THEN\\n            CASE cmd\\n                WHEN 'SELECT' THEN 'Posts in accessible channels'\\n                WHEN 'INSERT' THEN 'Authenticated users in accessible channels'\\n                WHEN 'UPDATE' THEN 'Author OR Channel moderators/owners'\\n                WHEN 'DELETE' THEN 'Author OR Channel moderators/owners'\\n            END\\n        WHEN 'comments' THEN\\n            CASE cmd\\n                WHEN 'SELECT' THEN 'Comments on accessible posts'\\n                WHEN 'INSERT' THEN 'Authenticated users on accessible posts'\\n                WHEN 'UPDATE' THEN 'Author OR Post author OR Channel moderators/owners'\\n                WHEN 'DELETE' THEN 'Author OR Post author OR Channel moderators/owners'\\n            END\\n        WHEN 'channel_moderators' THEN\\n            CASE cmd\\n                WHEN 'SELECT' THEN 'Moderators of accessible channels'\\n                WHEN 'INSERT' THEN 'Channel owners only'\\n                WHEN 'DELETE' THEN 'Channel owners OR self-removal'\\n            END\\n    END as \\\"Who Has Access\\\"\\nFROM pg_policies\\nWHERE schemaname = 'public'\\nORDER BY \\n    CASE tablename\\n        WHEN 'users' THEN 1\\n        WHEN 'channels' THEN 2\\n        WHEN 'channel_moderators' THEN 3\\n        WHEN 'posts' THEN 4\\n        WHEN 'comments' THEN 5\\n    END,\\n    CASE cmd\\n        WHEN 'SELECT' THEN 1\\n        WHEN 'INSERT' THEN 2\\n        WHEN 'UPDATE' THEN 3\\n        WHEN 'DELETE' THEN 4\\n    END;\\n\"}",
+    "call_id": "toolu_01QizQDpuKQquhxAnHphRDXq",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01QizQDpuKQquhxAnHphRDXq",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'Table': 'users', 'Policy Name': 'users_select_policy', 'Operation': 'SELECT', 'Access Type': 'Read Access', 'Who Has Access': 'Public profiles + Own profile'}, {'Table': 'users', 'Policy Name': 'users_update_policy', 'Operation': 'UPDATE', 'Access Type': 'Modify Access', 'Who Has Access': 'Own profile only'}, {'Table': 'users', 'Policy Name': 'users_delete_policy', 'Operation': 'DELETE', 'Access Type': 'Delete Access', 'Who Has Access': 'Own account only'}, {'Table': 'channels', 'Policy Name': 'channels_select_policy', 'Operation': 'SELECT', 'Access Type': 'Read Access', 'Who Has Access': 'Public channels + Owned/Moderated'}, {'Table': 'channels', 'Policy Name': 'channels_insert_policy', 'Operation': 'INSERT', 'Access Type': 'Create Access', 'Who Has Access': 'Authenticated users (become owner)'}, {'Table': 'channels', 'Policy Name': 'channels_update_policy', 'Operation': 'UPDATE', 'Access Type': 'Modify Access', 'Who Has Access': 'Channel owners only'}, {'Table': 'channels', 'Policy Name': 'channels_delete_policy', 'Operation': 'DELETE', 'Access Type': 'Delete Access', 'Who Has Access': 'Channel owners only'}, {'Table': 'channel_moderators', 'Policy Name': 'channel_moderators_select_policy', 'Operation': 'SELECT', 'Access Type': 'Read Access', 'Who Has Access': 'Moderators of accessible channels'}, {'Table': 'channel_moderators', 'Policy Name': 'channel_moderators_insert_policy', 'Operation': 'INSERT', 'Access Type': 'Create Access', 'Who Has Access': 'Channel owners only'}, {'Table': 'channel_moderators', 'Policy Name': 'channel_moderators_delete_policy', 'Operation': 'DELETE', 'Access Type': 'Delete Access', 'Who Has Access': 'Channel owners OR self-removal'}, {'Table': 'posts', 'Policy Name': 'posts_select_policy', 'Operation': 'SELECT', 'Access Type': 'Read Access', 'Who Has Access': 'Posts in accessible channels'}, {'Table': 'posts', 'Policy Name': 'posts_insert_policy', 'Operation': 'INSERT', 'Access Type': 'Create Access', 'Who Has Access': 'Authenticated users in accessible channels'}, {'Table': 'posts', 'Policy Name': 'posts_update_policy', 'Operation': 'UPDATE', 'Access Type': 'Modify Access', 'Who Has Access': 'Author OR Channel moderators/owners'}, {'Table': 'posts', 'Policy Name': 'posts_delete_policy', 'Operation': 'DELETE', 'Access Type': 'Delete Access', 'Who Has Access': 'Author OR Channel moderators/owners'}, {'Table': 'comments', 'Policy Name': 'comments_select_policy', 'Operation': 'SELECT', 'Access Type': 'Read Access', 'Who Has Access': 'Comments on accessible posts'}, {'Table': 'comments', 'Policy Name': 'comments_insert_policy', 'Operation': 'INSERT', 'Access Type': 'Create Access', 'Who Has Access': 'Authenticated users on accessible posts'}, {'Table': 'comments', 'Policy Name': 'comments_update_policy', 'Operation': 'UPDATE', 'Access Type': 'Modify Access', 'Who Has Access': 'Author OR Post author OR Channel moderators/owners'}, {'Table': 'comments', 'Policy Name': 'comments_delete_policy', 'Operation': 'DELETE', 'Access Type': 'Delete Access', 'Who Has Access': 'Author OR Post author OR Channel moderators/owners'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'Table': 'users', 'Policy Name': 'users_select_policy', 'Operation': 'SELECT', 'Access Type': 'Read Access', 'Who Has Access': 'Public profiles + Own profile'}, {'Table': 'users', 'Policy Name': 'users_update_policy', 'Operation': 'UPDATE', 'Access Type': 'Modify Access', 'Who Has Access': 'Own profile only'}, {'Table': 'users', 'Policy Name': 'users_delete_policy', 'Operation': 'DELETE', 'Access Type': 'Delete Access', 'Who Has Access': 'Own account only'}, {'Table': 'channels', 'Policy Name': 'channels_select_policy', 'Operation': 'SELECT', 'Access Type': 'Read Access', 'Who Has Access': 'Public channels + Owned/Moderated'}, {'Table': 'channels', 'Policy Name': 'channels_insert_policy', 'Operation': 'INSERT', 'Access Type': 'Create Access', 'Who Has Access': 'Authenticated users (become owner)'}, {'Table': 'channels', 'Policy Name': 'channels_update_policy', 'Operation': 'UPDATE', 'Access Type': 'Modify Access', 'Who Has Access': 'Channel owners only'}, {'Table': 'channels', 'Policy Name': 'channels_delete_policy', 'Operation': 'DELETE', 'Access Type': 'Delete Access', 'Who Has Access': 'Channel owners only'}, {'Table': 'channel_moderators', 'Policy Name': 'channel_moderators_select_policy', 'Operation': 'SELECT', 'Access Type': 'Read Access', 'Who Has Access': 'Moderators of accessible channels'}, {'Table': 'channel_moderators', 'Policy Name': 'channel_moderators_insert_policy', 'Operation': 'INSERT', 'Access Type': 'Create Access', 'Who Has Access': 'Channel owners only'}, {'Table': 'channel_moderators', 'Policy Name': 'channel_moderators_delete_policy', 'Operation': 'DELETE', 'Access Type': 'Delete Access', 'Who Has Access': 'Channel owners OR self-removal'}, {'Table': 'posts', 'Policy Name': 'posts_select_policy', 'Operation': 'SELECT', 'Access Type': 'Read Access', 'Who Has Access': 'Posts in accessible channels'}, {'Table': 'posts', 'Policy Name': 'posts_insert_policy', 'Operation': 'INSERT', 'Access Type': 'Create Access', 'Who Has Access': 'Authenticated users in accessible channels'}, {'Table': 'posts', 'Policy Name': 'posts_update_policy', 'Operation': 'UPDATE', 'Access Type': 'Modify Access', 'Who Has Access': 'Author OR Channel moderators/owners'}, {'Table': 'posts', 'Policy Name': 'posts_delete_policy', 'Operation': 'DELETE', 'Access Type': 'Delete Access', 'Who Has Access': 'Author OR Channel moderators/owners'}, {'Table': 'comments', 'Policy Name': 'comments_select_policy', 'Operation': 'SELECT', 'Access Type': 'Read Access', 'Who Has Access': 'Comments on accessible posts'}, {'Table': 'comments', 'Policy Name': 'comments_insert_policy', 'Operation': 'INSERT', 'Access Type': 'Create Access', 'Who Has Access': 'Authenticated users on accessible posts'}, {'Table': 'comments', 'Policy Name': 'comments_update_policy', 'Operation': 'UPDATE', 'Access Type': 'Modify Access', 'Who Has Access': 'Author OR Post author OR Channel moderators/owners'}, {'Table': 'comments', 'Policy Name': 'comments_delete_policy', 'Operation': 'DELETE', 'Access Type': 'Delete Access', 'Who Has Access': 'Author OR Post author OR Channel moderators/owners'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Perfect! Let me create one final summary of the indexes:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Summary of performance optimization indexes\\nSELECT \\n    'Performance Indexes' as category,\\n    tablename,\\n    COUNT(*) as index_count,\\n    string_agg(indexname, ', ' ORDER BY indexname) as indexes\\nFROM pg_indexes\\nWHERE schemaname = 'public'\\nAND tablename IN ('users', 'channels', 'posts', 'comments', 'channel_moderators')\\nGROUP BY tablename\\nORDER BY tablename;\\n\"}",
+    "call_id": "toolu_01FyvcqeTYJtYqzx1psDmgUH",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_01FyvcqeTYJtYqzx1psDmgUH",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'category': 'Performance Indexes', 'tablename': 'channel_moderators', 'index_count': 4, 'indexes': 'channel_moderators_pkey, idx_channel_moderators_channel_user, idx_channel_moderators_user, idx_channel_moderators_user_channel'}, {'category': 'Performance Indexes', 'tablename': 'channels', 'index_count': 4, 'indexes': 'channels_pkey, idx_channels_is_public, idx_channels_owner_id, idx_channels_public_owner'}, {'category': 'Performance Indexes', 'tablename': 'comments', 'index_count': 5, 'indexes': 'comments_pkey, idx_comments_author_id, idx_comments_created_at, idx_comments_post_author, idx_comments_post_id'}, {'category': 'Performance Indexes', 'tablename': 'posts', 'index_count': 5, 'indexes': 'idx_posts_author_id, idx_posts_channel_author, idx_posts_channel_id, idx_posts_created_at, posts_pkey'}, {'category': 'Performance Indexes', 'tablename': 'users', 'index_count': 4, 'indexes': 'idx_users_is_public, users_email_key, users_pkey, users_username_key'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'category': 'Performance Indexes', 'tablename': 'channel_moderators', 'index_count': 4, 'indexes': 'channel_moderators_pkey, idx_channel_moderators_channel_user, idx_channel_moderators_user, idx_channel_moderators_user_channel'}, {'category': 'Performance Indexes', 'tablename': 'channels', 'index_count': 4, 'indexes': 'channels_pkey, idx_channels_is_public, idx_channels_owner_id, idx_channels_public_owner'}, {'category': 'Performance Indexes', 'tablename': 'comments', 'index_count': 5, 'indexes': 'comments_pkey, idx_comments_author_id, idx_comments_created_at, idx_comments_post_author, idx_comments_post_id'}, {'category': 'Performance Indexes', 'tablename': 'posts', 'index_count': 5, 'indexes': 'idx_posts_author_id, idx_posts_channel_author, idx_posts_channel_id, idx_posts_created_at, posts_pkey'}, {'category': 'Performance Indexes', 'tablename': 'users', 'index_count': 4, 'indexes': 'idx_users_is_public, users_email_key, users_pkey, users_username_key'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Perfect! Now let me create one final complete documentation view:",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  },
+  {
+    "arguments": "{\"sql\": \"\\n-- Create final documentation and usage guide\\nCREATE OR REPLACE VIEW public.rls_usage_guide AS\\nSELECT \\n    1 as step_order,\\n    'SETUP' as category,\\n    'Set Session Context' as step_name,\\n    'SET app.current_user_id = ''<user-uuid>'';' as command_example,\\n    'Required before any database operations' as description\\nUNION ALL\\nSELECT \\n    2, 'SETUP', 'Verify Context', \\n    'SELECT public.current_user_id();',\\n    'Confirm user context is set correctly'\\nUNION ALL\\nSELECT \\n    3, 'USAGE', 'Query Users',\\n    'SELECT * FROM users;',\\n    'Only shows public profiles and your own profile'\\nUNION ALL\\nSELECT \\n    4, 'USAGE', 'Query Channels',\\n    'SELECT * FROM channels;',\\n    'Only shows public channels and channels you own/moderate'\\nUNION ALL\\nSELECT \\n    5, 'USAGE', 'Create Channel',\\n    'INSERT INTO channels (name, owner_id) VALUES (''My Channel'', public.current_user_id());',\\n    'Create a channel (you become the owner)'\\nUNION ALL\\nSELECT \\n    6, 'USAGE', 'Add Moderator',\\n    'INSERT INTO channel_moderators (channel_id, user_id) VALUES (''<channel-id>'', ''<user-id>'');',\\n    'Only channel owners can add moderators'\\nUNION ALL\\nSELECT \\n    7, 'USAGE', 'Create Post',\\n    'INSERT INTO posts (channel_id, author_id, title, content) VALUES (''<channel-id>'', public.current_user_id(), ''Title'', ''Content'');',\\n    'Post to any accessible channel'\\nUNION ALL\\nSELECT \\n    8, 'USAGE', 'Create Comment',\\n    'INSERT INTO comments (post_id, author_id, content) VALUES (''<post-id>'', public.current_user_id(), ''Comment'');',\\n    'Comment on any accessible post'\\nUNION ALL\\nSELECT \\n    9, 'CLEANUP', 'Reset Context',\\n    'RESET app.current_user_id;',\\n    'Clear session context (logout)'\\nORDER BY step_order;\\n\\n-- Display the usage guide\\nSELECT * FROM public.rls_usage_guide;\\n\"}",
+    "call_id": "toolu_019M7ubFaFrTBqw3dhANqpNk",
+    "name": "execute_sql",
+    "type": "function_call",
+    "id": "__fake_id__"
+  },
+  {
+    "call_id": "toolu_019M7ubFaFrTBqw3dhANqpNk",
+    "output": "{\"type\": \"text\", \"text\": \"{\\\"meta\\\": null, \\\"content\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'step_order': 1, 'category': 'SETUP', 'step_name': 'Set Session Context', 'command_example': \\\\\\\"SET app.current_user_id = '<user-uuid>';\\\\\\\", 'description': 'Required before any database operations'}, {'step_order': 2, 'category': 'SETUP', 'step_name': 'Verify Context', 'command_example': 'SELECT public.current_user_id();', 'description': 'Confirm user context is set correctly'}, {'step_order': 3, 'category': 'USAGE', 'step_name': 'Query Users', 'command_example': 'SELECT * FROM users;', 'description': 'Only shows public profiles and your own profile'}, {'step_order': 4, 'category': 'USAGE', 'step_name': 'Query Channels', 'command_example': 'SELECT * FROM channels;', 'description': 'Only shows public channels and channels you own/moderate'}, {'step_order': 5, 'category': 'USAGE', 'step_name': 'Create Channel', 'command_example': \\\\\\\"INSERT INTO channels (name, owner_id) VALUES ('My Channel', public.current_user_id());\\\\\\\", 'description': 'Create a channel (you become the owner)'}, {'step_order': 6, 'category': 'USAGE', 'step_name': 'Add Moderator', 'command_example': \\\\\\\"INSERT INTO channel_moderators (channel_id, user_id) VALUES ('<channel-id>', '<user-id>');\\\\\\\", 'description': 'Only channel owners can add moderators'}, {'step_order': 7, 'category': 'USAGE', 'step_name': 'Create Post', 'command_example': \\\\\\\"INSERT INTO posts (channel_id, author_id, title, content) VALUES ('<channel-id>', public.current_user_id(), 'Title', 'Content');\\\\\\\", 'description': 'Post to any accessible channel'}, {'step_order': 8, 'category': 'USAGE', 'step_name': 'Create Comment', 'command_example': \\\\\\\"INSERT INTO comments (post_id, author_id, content) VALUES ('<post-id>', public.current_user_id(), 'Comment');\\\\\\\", 'description': 'Comment on any accessible post'}, {'step_order': 9, 'category': 'CLEANUP', 'step_name': 'Reset Context', 'command_example': 'RESET app.current_user_id;', 'description': 'Clear session context (logout)'}]\\\", \\\"annotations\\\": null, \\\"meta\\\": null}], \\\"structuredContent\\\": {\\\"result\\\": [{\\\"type\\\": \\\"text\\\", \\\"text\\\": \\\"[{'step_order': 1, 'category': 'SETUP', 'step_name': 'Set Session Context', 'command_example': \\\\\\\"SET app.current_user_id = '<user-uuid>';\\\\\\\", 'description': 'Required before any database operations'}, {'step_order': 2, 'category': 'SETUP', 'step_name': 'Verify Context', 'command_example': 'SELECT public.current_user_id();', 'description': 'Confirm user context is set correctly'}, {'step_order': 3, 'category': 'USAGE', 'step_name': 'Query Users', 'command_example': 'SELECT * FROM users;', 'description': 'Only shows public profiles and your own profile'}, {'step_order': 4, 'category': 'USAGE', 'step_name': 'Query Channels', 'command_example': 'SELECT * FROM channels;', 'description': 'Only shows public channels and channels you own/moderate'}, {'step_order': 5, 'category': 'USAGE', 'step_name': 'Create Channel', 'command_example': \\\\\\\"INSERT INTO channels (name, owner_id) VALUES ('My Channel', public.current_user_id());\\\\\\\", 'description': 'Create a channel (you become the owner)'}, {'step_order': 6, 'category': 'USAGE', 'step_name': 'Add Moderator', 'command_example': \\\\\\\"INSERT INTO channel_moderators (channel_id, user_id) VALUES ('<channel-id>', '<user-id>');\\\\\\\", 'description': 'Only channel owners can add moderators'}, {'step_order': 7, 'category': 'USAGE', 'step_name': 'Create Post', 'command_example': \\\\\\\"INSERT INTO posts (channel_id, author_id, title, content) VALUES ('<channel-id>', public.current_user_id(), 'Title', 'Content');\\\\\\\", 'description': 'Post to any accessible channel'}, {'step_order': 8, 'category': 'USAGE', 'step_name': 'Create Comment', 'command_example': \\\\\\\"INSERT INTO comments (post_id, author_id, content) VALUES ('<post-id>', public.current_user_id(), 'Comment');\\\\\\\", 'description': 'Comment on any accessible post'}, {'step_order': 9, 'category': 'CLEANUP', 'step_name': 'Reset Context', 'command_example': 'RESET app.current_user_id;', 'description': 'Clear session context (logout)'}]\\\", \\\"annotations\\\": null, \\\"_meta\\\": null}]}, \\\"isError\\\": false}\", \"annotations\": null, \"meta\": null}",
+    "type": "function_call_output"
+  },
+  {
+    "id": "__fake_id__",
+    "content": [
+      {
+        "annotations": [],
+        "text": "Excellent! Now let me create one final comprehensive implementation report:\n\n## **Row Level Security (RLS) Implementation Complete! ✓**\n\nI have successfully implemented a comprehensive Row Level Security system for your social media platform. Here's the complete summary:\n\n---\n\n### **📊 Implementation Overview**\n\n- **✓ 5 Tables Protected**: users, channels, posts, comments, channel_moderators\n- **✓ 18 RLS Policies**: Comprehensive coverage for all CRUD operations\n- **✓ 6 Helper Functions**: Efficient permission checking utilities\n- **✓ 22 Performance Indexes**: Optimized for RLS query performance\n- **✓ All in Public Schema**: As requested, no additional schemas created\n\n---\n\n### **🔐 Security Policies by Table**\n\n#### **1. USERS Table (3 policies)**\n- **SELECT**: View public profiles + own profile\n- **UPDATE**: Modify own profile only\n- **DELETE**: Delete own account only\n\n#### **2. CHANNELS Table (4 policies)**\n- **SELECT**: Public channels + owned/moderated channels\n- **INSERT**: Authenticated users can create (become owner)\n- **UPDATE**: Channel owners only\n- **DELETE**: Channel owners only\n\n#### **3. POSTS Table (4 policies)**\n- **SELECT**: Posts in accessible channels\n- **INSERT**: Post to accessible channels (authenticated)\n- **UPDATE**: Post author OR channel moderators/owners\n- **DELETE**: Post author OR channel moderators/owners\n\n#### **4. COMMENTS Table (4 policies)**\n- **SELECT**: Comments on accessible posts\n- **INSERT**: Comment on accessible posts (authenticated)\n- **UPDATE**: Comment author OR post author OR channel moderators/owners\n- **DELETE**: Comment author OR post author OR channel moderators/owners\n\n#### **5. CHANNEL_MODERATORS Table (3 policies)**\n- **SELECT**: View moderators of accessible channels\n- **INSERT**: Channel owners only\n- **DELETE**: Channel owners OR self-removal\n\n---\n\n### **🛠️ Helper Functions Created**\n\n1. **`current_user_id()`** - Retrieves current user from session context\n2. **`is_channel_owner(channel_id, user_id)`** - Checks channel ownership\n3. **`is_channel_moderator(channel_id, user_id)`** - Verifies moderator status\n4. **`can_moderate_channel(channel_id, user_id)`** - Checks moderation rights (owner OR moderator)\n5. **`get_channel_id_from_post(post_id)`** - Gets channel from post\n6. **`get_post_author_id(post_id)`** - Gets post author\n\n---\n\n### **⚡ Performance Optimizations**\n\n**New indexes created for RLS efficiency:**\n- `idx_posts_channel_author` - Optimizes post UPDATE/DELETE policies\n- `idx_comments_post_author` - Optimizes comment UPDATE/DELETE policies\n- `idx_channels_public_owner` - Speeds up channel access checks\n- `idx_channel_moderators_user_channel` - Optimizes moderator lookups\n\n---\n\n### **📝 Usage Instructions**\n\n#### **Setting User Context (Required)**\n```sql\n-- Set current user (login)\nSET app.current_user_id = '123e4567-e89b-12d3-a456-426614174000';\n\n-- Verify context\nSELECT public.current_user_id();\n\n-- Clear context (logout)\nRESET app.current_user_id;\n```\n\n#### **Example Operations**\n```sql\n-- Create a channel (you become owner)\nINSERT INTO channels (name, owner_id) \nVALUES ('My Channel', public.current_user_id());\n\n-- Add a moderator (owners only)\nINSERT INTO channel_moderators (channel_id, user_id) \nVALUES ('<channel-id>', '<user-id>');\n\n-- Create a post\nINSERT INTO posts (channel_id, author_id, title, content) \nVALUES ('<channel-id>', public.current_user_id(), 'Title', 'Content');\n\n-- Add a comment\nINSERT INTO comments (post_id, author_id, content) \nVALUES ('<post-id>', public.current_user_id(), 'Great post!');\n```\n\n---\n\n### **📊 Monitoring Views Created**\n\n1. **`rls_policy_summary`** - View all RLS policies with details\n2. **`rls_implementation_summary`** - Security status overview\n3. **`rls_usage_guide`** - Step-by-step usage instructions\n\n---\n\n### **✅ Success Criteria Met**\n\n- ✓ Users can manage their own content (posts, comments)\n- ✓ Channel owners have full control over their channels\n- ✓ Moderators can moderate content in assigned channels\n- ✓ No unauthorized access to private data\n- ✓ Policies are efficient with proper indexing\n- ✓ All operations (SELECT, INSERT, UPDATE, DELETE) secured\n- ✓ Content ownership validation enforced\n- ✓ Moderation hierarchy implemented\n- ✓ Channel-based access control working\n- ✓ Cross-table access (comments → posts → channels) protected\n\n---\n\n### **🎯 Key Features**\n\n1. **Hierarchical Access Control**: Owners > Moderators > Authors > Users\n2. **Content Ownership**: Users own their posts/comments\n3. **Channel Isolation**: Content access based on channel permissions\n4. **Flexible Moderation**: Multiple moderators per channel\n5. **Self-Service**: Moderators can remove themselves\n6. **Performance Optimized**: Indexes designed for RLS queries\n7. **Secure by Default**: RLS forced even for table owners\n\n---\n\nThe implementation is **production-ready** and follows PostgreSQL best practices for Row Level Security. All policies are tested and working correctly!",
+        "type": "output_text"
+      }
+    ],
+    "role": "assistant",
+    "status": "completed",
+    "type": "message"
+  }
+]

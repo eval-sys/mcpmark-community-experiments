@@ -1,0 +1,27 @@
+{
+  "task_name": "lego__transactional_inventory_transfer",
+  "model_name": "claude-sonnet-4.5",
+  "litellm_run_model_name": "claude-sonnet-4-5-20250929",
+  "reasoning_effort": "default",
+  "mcp": "supabase",
+  "timeout": 3600,
+  "time": {
+    "start": "2025-10-20T00:48:36.765202",
+    "end": "2025-10-20T00:54:46.035966"
+  },
+  "agent_execution_time": 367.9015531539917,
+  "task_execution_time": 369.2707550525665,
+  "execution_result": {
+    "success": true,
+    "error_message": null,
+    "verification_error": null,
+    "verification_output": "============================================================\nLEGO Enhanced Inventory Transfer Function Verification Script\n============================================================\n\n-- Verifying System Components --\n✅ PASS: All system components exist\n\n-- Verifying Successful Transfer with Audit --\nInitial quantities - Source: 1440, Target: 1170\nTransfer result: Successfully transferred 100 parts (3024, color_id: 15) from inventory 14469 to inventory 14686. Reason: inventory_adjustment\nFinal quantities - Source: 1340, Target: 1270\n✅ PASS: Successful transfer with audit logging completed correctly\n\n-- Verifying New Part Transfer --\nInitial quantities - Source: 102, Target: 0\nTransfer result: Successfully transferred 50 parts (3001, color_id: 4) from inventory 11124 to inventory 14686. Reason: part_redistribution\nFinal quantities - Source: 52, Target: 50\n✅ PASS: New part transfer completed correctly\n\n-- Verifying Business Rule Validation --\nTest 1: Self-transfer (should fail)\n✅ PASS: Self-transfer correctly failed\nTest 2: Transfer quantity exceeds maximum (should fail)\n✅ PASS: Large transfer correctly failed\nTest 3: Transfer quantity below minimum (should fail)\n✅ PASS: Zero transfer correctly failed\n\n-- Verifying Insufficient Quantity Error --\nInitial quantities - Source: 1440, Target: 1170\n✅ PASS: Transfer correctly failed with an exception.\n✅ PASS: Database state unchanged after failed transfer\n\n-- Verifying Invalid Inventory Error --\n✅ PASS: Transfer correctly failed with an exception.\n✅ PASS: Database state unchanged after invalid inventory error\n\n-- Verifying Audit Logging --\nPart 1: Verifying success log entry...\n✅ PASS: Success log was correctly written within the transaction.\n\nPart 2: Verifying failure log entry...\n✅ PASS: Failure log was correctly rolled back as expected in a standard transaction.\n\n-- Verifying Exact Quantity Transfer --\nTesting exact transfer: 5 parts of '3069b' from inventory 3 to 14686\nInitial quantities - Source: 5, Target: 0\nTransfer result: Successfully transferred 5 parts (3069b, color_id: 27) from inventory 3 to inventory 14686. Reason: exact_transfer\nFinal quantities - Source: 0, Target: 5\n✅ PASS: Exact quantity transfer completed correctly (source row deleted)\n\n🎉 Overall Result: PASS - All verification steps completed successfully!\n"
+  },
+  "token_usage": {
+    "input_tokens": 1080056,
+    "output_tokens": 21191,
+    "total_tokens": 1101247,
+    "reasoning_tokens": 0
+  },
+  "turn_count": 46
+}
